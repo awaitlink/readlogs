@@ -1,0 +1,22 @@
+on: [push, pull_request]
+name: Rust
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          target: wasm32-unknown-unknown
+          profile: minimal
+          toolchain: stable
+          components: rustfmt, clippy
+      - name: Build
+        run: cargo build
+      - name: Test
+        run: cargo test
+      - name: Clippy
+        run: cargo clippy
+      - name: Rustfmt
+        run: cargo fmt --all -- --check

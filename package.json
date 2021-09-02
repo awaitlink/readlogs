@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "devDependencies": {
+    "@fortawesome/fontawesome-free": "^5.15.4",
+    "@tailwindcss/forms": "^0.3.3",
+    "@tailwindcss/typography": "^0.4.1",
+    "inter-ui": "^3.19.3",
+    "tailwindcss": "^2.2.7"
+  }
+}

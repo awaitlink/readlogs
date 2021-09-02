@@ -1,0 +1,17 @@
+[watch]
+ignore = [
+    "worker",
+    ".gitignore",
+    "LICENSE",
+    "README.md",
+    "build.release.sh",
+    "rustfmt.toml",
+]
+
+[[hooks]]
+stage = "build"
+command = "sh"
+command_arguments = [
+    "-c",
+    "yarn exec -- tailwindcss build -m -i tailwind.css -o \"$TRUNK_STAGING_DIR/tailwind.css\"",
+]

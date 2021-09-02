@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+    font-family: "Inter var";
+    font-weight: 100 900;
+    font-style: oblique 0deg 10deg;
+    font-display: swap;
+    src: url("Inter.var.woff2") format("woff2-variations"), url("Inter.var.woff2") format("woff2");
+}
+
+.prose table pre {
+    color: unset;
+    background-color: unset;
+    overflow-x: unset;
+    font-size: unset;
+    line-height: unset;
+    margin-top: unset;
+    margin-bottom: unset;
+    border-radius: unset;
+    padding: unset;
+}
