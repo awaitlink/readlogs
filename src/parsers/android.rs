@@ -1,6 +1,6 @@
 use nom::{
     branch::alt,
-    bytes::complete::{is_not, tag, take_until},
+    bytes::complete::{is_a, is_not, tag, take_until},
     character::complete::{self, digit1, multispace0, newline, space0, space1},
     combinator::{map, not, opt, peek, success, value, verify},
     multi::{count, many0, many1, separated_list1},
@@ -157,7 +157,7 @@ fn logcat_entry(year: i32) -> impl FnMut(&str) -> IResult<&str, LogEntry> {
                 space0,
                 is_not(" "),
                 space0,
-                is_not(" "),
+                is_a("VDIWEF"),
                 space0,
                 take_until(": "),
                 tag(": "),
