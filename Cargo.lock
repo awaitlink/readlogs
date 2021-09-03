@@ -516,7 +516,6 @@ dependencies = [
  "anyhow",
  "chrono",
  "derive_more",
- "heck",
  "nom",
  "strum",
  "strum_macros",
