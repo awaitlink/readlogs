@@ -22,11 +22,16 @@ impl super::Model {
             _ => html! {},
         };
 
-        let wrapper_classes = if self.ui_expanded {
-            "mb-4 py-4 bg-white"
-        } else {
-            "my-4 py-4 bg-white max-w-5xl mx-auto rounded-2xl"
-        };
+        let mut wrapper_classes = classes!("mb-4", "py-4", "bg-white");
+
+        if !self.ui_expanded {
+            wrapper_classes.push(classes!(
+                "max-w-5xl",
+                "mx-auto",
+                "lg:mt-4",
+                "lg:rounded-2xl",
+            ));
+        }
 
         html! {
             <>
