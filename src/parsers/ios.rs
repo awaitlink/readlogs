@@ -1,7 +1,7 @@
 use chrono::prelude::*;
 use nom::{
     branch::alt,
-    bytes::complete::{is_not, tag, take_until},
+    bytes::complete::{is_a, is_not, tag, take_until},
     character::complete::{multispace0, space0},
     combinator::{map, opt, verify},
     multi::many0,
@@ -21,10 +21,9 @@ pub struct LogEntryMetadata {
 }
 
 fn level(input: &str) -> IResult<&str, LogLevel> {
-    let (remainder, heart) =
-        alt((tag("💙"), tag("💚"), tag("💛"), tag("🧡"), tag("❤️")))(input)?;
-
-    Ok((remainder, heart.parse().unwrap()))
+    map(is_a("💙💚💛🧡❤️"), |heart: &str| {
+        heart.parse().unwrap()
+    })(input)
 }
 
 fn metadata(
