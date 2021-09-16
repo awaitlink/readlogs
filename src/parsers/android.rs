@@ -4,7 +4,7 @@ use nom::{
     character::complete::{self, digit1, multispace0, newline, space0, space1},
     combinator::{map, not, opt, peek, success, value, verify},
     multi::{count, many0, many1, separated_list1},
-    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
+    sequence::{delimited, pair, preceded, separated_pair, tuple},
     IResult,
 };
 
@@ -99,13 +99,13 @@ fn local_metrics_section(input: &str) -> IResult<&str, Section<InfoEntry>> {
 
 fn info_section(depth: SectionLevel) -> impl FnMut(&str) -> IResult<&str, Section<InfoEntry>> {
     move |input| {
-        let section_header_parser = common::ws(match depth {
+        let section_header_parser = match depth {
             SectionLevel::Base => common::section_header,
             SectionLevel::Sub => subsection_header,
-        });
+        };
 
         let (remainder, name) = verify(
-            terminated(section_header_parser, opt(newline)),
+            delimited(multispace0, section_header_parser, opt(newline)),
             |name: &str| name != LOGCAT_SECTION_NAME && name != LOGGER_SECTION_NAME,
         )(input)?;
 
@@ -118,7 +118,7 @@ fn info_section(depth: SectionLevel) -> impl FnMut(&str) -> IResult<&str, Sectio
                     map(remote_object::remote_object, |ro| {
                         vec![InfoEntry::RemoteObject(ro)]
                     }),
-                    value(vec![], tag("None")),
+                    value(vec![InfoEntry::LiteralNone], tag("None")),
                     many1(common::multispaced0(map(
                         preceded(peek(not(local_metrics_section)), is_not("\n-=")),
                         |s: &str| InfoEntry::Generic(s.to_owned()),
@@ -374,7 +374,7 @@ mod tests {
                 },
                 Section {
                     name: "Dependencies".to_owned(),
-                    content: vec![],
+                    content: vec![InfoEntry::LiteralNone],
                     subsections: vec![],
                 },
             ],
@@ -543,6 +543,14 @@ mod tests {
                 }
             ],
         }; "blocked threads"
+    )]
+    #[test_case(
+        "\n\n \n====== EMPTY SECTION ======\n" =>
+        Section {
+            name: "EMPTY SECTION".to_owned(),
+            content: vec![],
+            subsections: vec![],
+        }; "empty section"
     )]
     fn info_section_ok(input: &str) -> Section<InfoEntry> {
         parsing_test(info_section(SectionLevel::Base), input)

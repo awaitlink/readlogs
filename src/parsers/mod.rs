@@ -32,6 +32,7 @@ pub enum InfoEntry {
     KeyValue(String, Value),
     KeyEnabledValue(String, bool, Option<Value>),
     RemoteObject(RemoteObject),
+    LiteralNone,
     Generic(String),
 }
 
@@ -140,7 +141,7 @@ impl Section<InfoEntry> {
 
         let full_content = if self.content.is_empty() && self.subsections.is_empty() {
             html! {
-                <p>{ "None" }</p>
+                <p><i>{ "No content or subsections" }</i></p>
             }
         } else {
             html! {
@@ -200,6 +201,7 @@ impl InfoEntry {
                     href=ro.debuglogs_url()
                 />
             },
+            InfoEntry::LiteralNone => html! { <p>{ "None" }</p> },
             InfoEntry::Generic(text) => html! { text.to_owned() + "\n" },
         }
     }

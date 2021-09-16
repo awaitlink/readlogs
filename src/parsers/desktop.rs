@@ -5,7 +5,7 @@ use nom::{
     character::complete::{multispace0, newline, space0},
     combinator::{map, opt, verify},
     multi::many0,
-    sequence::{delimited, preceded, separated_pair, terminated, tuple},
+    sequence::{delimited, preceded, separated_pair, tuple},
     IResult,
 };
 
@@ -15,7 +15,7 @@ const LOGS_SECTION_NAME: &str = "Logs";
 
 fn info_section(input: &str) -> IResult<&str, Section<InfoEntry>> {
     let (remainder, name) = verify(
-        terminated(common::section_header, opt(newline)),
+        delimited(multispace0, common::section_header, opt(newline)),
         |name: &str| name != LOGS_SECTION_NAME,
     )(input)?;
 
@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn content_ok() {
-        let (remainder, result) = content("========= Section 1 =========\nKey: 123.456 value\nAnother key: disabled\n\n========= Section 2 =========\nbucketed: enabled 1:2,3:4,*:5\n\n\n\n\n========= Section 3 =========\nabc: disabled true\n\n========= Logs =========\nINFO  1234-01-23T12:34:56.789Z This is a test message.\nDEBUG  1234-01-23T12:34:56.987Z Another message.").unwrap();
+        let (remainder, result) = content("\n  \n\n========= Section 1 =========\nKey: 123.456 value\nAnother key: disabled\n\n========= Section 2 =========\nbucketed: enabled 1:2,3:4,*:5\n\n\n\n\n========= Section 3 =========\nabc: disabled true\n\n========= Logs =========\nINFO  1234-01-23T12:34:56.789Z This is a test message.\nDEBUG  1234-01-23T12:34:56.987Z Another message.").unwrap();
 
         assert_eq!(remainder, "", "remainder should be empty");
         assert_eq!(
