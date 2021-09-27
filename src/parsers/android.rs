@@ -261,8 +261,8 @@ fn logger_metadata(input: &str) -> IResult<&str, (PlatformMetadata, String, LogL
 fn logger_entry(input: &str) -> IResult<&str, LogEntry> {
     map(
         separated_pair(logger_metadata, space0, common::message(logger_metadata)),
-        |((meta, dt, level), message)| LogEntry {
-            timestamp: dt.to_string(),
+        |((meta, timestamp, level), message)| LogEntry {
+            timestamp,
             level: Some(level),
             meta,
             message,
