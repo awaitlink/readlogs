@@ -1,5 +1,6 @@
 use anyhow::{anyhow, ensure};
 use chrono::prelude::*;
+use nom::{combinator::eof, sequence::terminated};
 use yew::prelude::*;
 
 use crate::{components::*, LogLevel, Platform, RemoteObject, RenderedLogSection, SearchQuery};
@@ -78,15 +79,8 @@ impl Content {
             Platform::Desktop => desktop::content,
         };
 
-        let (remainder, output) = parsing_fn(text).map_err(|error| anyhow!("{:#?}", error))?;
-
-        ensure!(
-            remainder.is_empty(),
-            "could not parse entire input:\n\nRemainder: {:#?}\n\nOutput: {:#?}\n\nInput: {:#?}",
-            remainder,
-            output,
-            text
-        );
+        let (_, output) =
+            terminated(parsing_fn, eof)(text).map_err(|error| anyhow!("{:#?}", error))?;
 
         Ok(output)
     }
