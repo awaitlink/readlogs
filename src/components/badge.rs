@@ -14,7 +14,6 @@ pub struct BadgeProps {
 
 #[derive(Debug)]
 pub struct Badge {
-    link: ComponentLink<Self>,
     props: BadgeProps,
 }
 
@@ -22,8 +21,8 @@ impl Component for Badge {
     type Message = ();
     type Properties = BadgeProps;
 
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        Self { link, props }
+    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
+        Self { props }
     }
 
     fn update(&mut self, _msg: Self::Message) -> ShouldRender {

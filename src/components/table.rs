@@ -11,7 +11,6 @@ pub struct TableProps {
 
 #[derive(Debug)]
 pub struct Table {
-    link: ComponentLink<Self>,
     props: TableProps,
 }
 
@@ -19,8 +18,8 @@ impl Component for Table {
     type Message = ();
     type Properties = TableProps;
 
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        Self { link, props }
+    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
+        Self { props }
     }
 
     fn update(&mut self, _msg: Self::Message) -> ShouldRender {

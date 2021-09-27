@@ -47,7 +47,6 @@ pub struct TitleProps {
 
 #[derive(Debug)]
 pub struct Title {
-    link: ComponentLink<Self>,
     props: TitleProps,
 }
 
@@ -55,8 +54,8 @@ impl Component for Title {
     type Message = ();
     type Properties = TitleProps;
 
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        Self { link, props }
+    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
+        Self { props }
     }
 
     fn update(&mut self, _msg: Self::Message) -> ShouldRender {

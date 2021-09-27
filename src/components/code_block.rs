@@ -14,7 +14,6 @@ pub struct CodeBlockProps {
 
 #[derive(Debug)]
 pub struct CodeBlock {
-    link: ComponentLink<Self>,
     props: CodeBlockProps,
 }
 
@@ -22,8 +21,8 @@ impl Component for CodeBlock {
     type Message = ();
     type Properties = CodeBlockProps;
 
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        Self { link, props }
+    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
+        Self { props }
     }
 
     fn update(&mut self, _msg: Self::Message) -> ShouldRender {

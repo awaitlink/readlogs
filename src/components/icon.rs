@@ -11,7 +11,6 @@ pub struct IconProps {
 
 #[derive(Debug)]
 pub struct Icon {
-    link: ComponentLink<Self>,
     props: IconProps,
 }
 
@@ -19,8 +18,8 @@ impl Component for Icon {
     type Message = ();
     type Properties = IconProps;
 
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        Self { link, props }
+    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
+        Self { props }
     }
 
     fn update(&mut self, _msg: Self::Message) -> ShouldRender {

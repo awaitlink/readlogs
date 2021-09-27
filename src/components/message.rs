@@ -21,7 +21,6 @@ pub struct MessageProps {
 
 #[derive(Debug)]
 pub struct Message {
-    link: ComponentLink<Self>,
     props: MessageProps,
 }
 
@@ -29,8 +28,8 @@ impl Component for Message {
     type Message = ();
     type Properties = MessageProps;
 
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        Self { link, props }
+    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
+        Self { props }
     }
 
     fn update(&mut self, _msg: Self::Message) -> ShouldRender {

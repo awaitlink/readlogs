@@ -24,7 +24,6 @@ pub struct LinkProps {
 
 #[derive(Debug)]
 pub struct Link {
-    link: ComponentLink<Self>,
     props: LinkProps,
 }
 
@@ -32,8 +31,8 @@ impl Component for Link {
     type Message = ();
     type Properties = LinkProps;
 
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        Self { link, props }
+    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
+        Self { props }
     }
 
     fn update(&mut self, _msg: Self::Message) -> ShouldRender {

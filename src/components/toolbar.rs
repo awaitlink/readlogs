@@ -15,7 +15,6 @@ pub struct ToolbarProps {
 
 #[derive(Debug)]
 pub struct Toolbar {
-    link: ComponentLink<Self>,
     props: ToolbarProps,
 }
 
@@ -23,8 +22,8 @@ impl Component for Toolbar {
     type Message = ();
     type Properties = ToolbarProps;
 
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        Self { link, props }
+    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
+        Self { props }
     }
 
     fn update(&mut self, _msg: Self::Message) -> ShouldRender {
