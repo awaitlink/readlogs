@@ -206,9 +206,26 @@ fn logcat_section(year: i32) -> impl FnMut(&str) -> IResult<&str, Section<LogEnt
     }
 }
 
-fn logger_metadata(
-    input: &str,
-) -> IResult<&str, (PlatformMetadata, DateTime<FixedOffset>, LogLevel)> {
+fn logger_metadata(input: &str) -> IResult<&str, (PlatformMetadata, String, LogLevel)> {
+    enum LoggerTimezone<'a> {
+        Parsed(FixedOffset),
+        Unparsed(&'a str),
+    }
+
+    let logger_timezone = alt((
+        map(
+            tuple((
+                tag("GMT"),
+                alt((value(1, tag("+")), value(-1, tag("-")))),
+                complete::i32,
+                tag(":"),
+                complete::i32,
+            )),
+            |(_, pm, h, _, m)| LoggerTimezone::Parsed(FixedOffset::east((h * 60 + m) * 60 * pm)),
+        ),
+        map(take_until(" "), |s| LoggerTimezone::Unparsed(s)),
+    ));
+
     map(
         tuple((
             delimited(tag("["), is_not("]"), tag("]")),
@@ -216,29 +233,25 @@ fn logger_metadata(
             delimited(tag("["), is_not("]"), tag("]")),
             space0,
             common::naive_date_time(None, "-", " ", ":", Some("."), None),
-            tuple((
-                tag(" GMT"),
-                alt((value(1, tag("+")), value(-1, tag("-")))),
-                complete::i32,
-                tag(":"),
-                complete::i32,
-            )),
+            space0,
+            logger_timezone,
             space0,
             is_not(" "),
             space0,
             take_until(": "),
             tag(": "),
         )),
-        |(version, _, thread_id, _, dt, (_, pm, h, _, m), _, level, _, tag, _)| {
+        |(version, _, thread_id, _, dt, _, tz, _, level, _, tag, _)| {
             (
                 PlatformMetadata::AndroidLogger(
                     version.to_owned(),
                     thread_id.trim().to_owned(),
                     tag.trim().to_owned(),
                 ),
-                FixedOffset::east((h * 60 + m) * 60 * pm)
-                    .from_local_datetime(&dt)
-                    .unwrap(),
+                match tz {
+                    LoggerTimezone::Parsed(tz) => tz.from_local_datetime(&dt).unwrap().to_string(),
+                    LoggerTimezone::Unparsed(s) => dt.to_string() + " " + s,
+                },
                 level.parse().unwrap(),
             )
         },
@@ -625,6 +638,12 @@ mod tests {
         meta: PlatformMetadata::AndroidLogger("1.23.4".to_owned(), "5678".to_owned(), "abc".to_owned()),
         message: "Log message\ncontinues here!".to_owned(),
     }; "multiline")]
+    #[test_case("[1.23.4] [5678 ] 1234-01-23 12:34:56.789 ABC I abc: Log message" => LogEntry {
+        timestamp: NaiveDate::from_ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string() + " ABC",
+        level: Some(LogLevel::Info),
+        meta: PlatformMetadata::AndroidLogger("1.23.4".to_owned(), "5678".to_owned(), "abc".to_owned()),
+        message: "Log message".to_owned(),
+    }; "timestamp not in GMT+hh:mm format")]
     fn logger_entry_ok(input: &str) -> LogEntry {
         parsing_test(logger_entry, input)
     }
