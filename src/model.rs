@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-use anyhow::Context;
+use anyhow::{ensure, Context};
 use derive_more::{Display, IsVariant};
 use strum_macros::EnumIter;
 use yew::{prelude::*, services::fetch::FetchTask, web_sys::HtmlInputElement};
@@ -227,13 +227,14 @@ impl Model {
                     files.insert(name, File::from_text(self.platform.unwrap(), text)?);
                 }
 
-                let active_filename = Rc::clone(
-                    files
-                        .keys()
-                        .filter(|k| k.app_id == AppId::Signal)
-                        .last()
-                        .unwrap(),
-                );
+                ensure!(!files.is_empty(), "no files in zip"); // TODO: maybe should just be a notice instead of an error
+
+                let last_for_app_id = |app_id| files.keys().filter(|k| k.app_id == app_id).last();
+                let active_filename =
+                    Rc::clone(last_for_app_id(AppId::Signal).unwrap_or_else(|| {
+                        last_for_app_id(AppId::NotificationServiceExtension)
+                            .unwrap_or_else(|| last_for_app_id(AppId::ShareAppExtension).unwrap())
+                    }));
 
                 Ok(self
                     .state
