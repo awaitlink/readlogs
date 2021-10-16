@@ -78,7 +78,9 @@ impl super::Model {
         match &self.state {
             State::NoData => html! {
                 <Message>
-                    { "Please enter the debug log URL and press " }
+                    { "Please enter a Signal " }
+                    <Link href="https://support.signal.org/hc/en-us/articles/360007318591" text="debug log"/>
+                    {" URL and press " }
                     <span>{ self.view_submit_button(ButtonSize::Small) }</span>
                     { " or " }
                     <Badge classes=classes!("bg-white") text="Enter ⏎" />
