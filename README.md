@@ -64,9 +64,9 @@ The response is, however, cached locally in the browser (currently, for 7 days) 
     yarn install
     ```
 1. Install [Rust](https://www.rust-lang.org), for example via [`rustup`](https://rustup.rs).
-1. Install [Trunk](https://trunkrs.dev). Currently, a development version is used in order to use the [hooks](https://trunkrs.dev/assets/#hooks) feature (to run `tailwindcss` during Trunk's build):
+1. Install [Trunk](https://trunkrs.dev), for example via:
     ```shell
-    cargo install --git https://github.com/thedodd/trunk --rev 8852981a2982827d45a4a31ce362fae69311b633 trunk
+    cargo install trunk
     ```
 1. Build the app:
     ```shell
