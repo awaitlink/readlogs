@@ -223,7 +223,7 @@ fn logger_metadata(input: &str) -> IResult<&str, (PlatformMetadata, String, LogL
             )),
             |(_, pm, h, _, m)| LoggerTimezone::Parsed(FixedOffset::east((h * 60 + m) * 60 * pm)),
         ),
-        map(take_until(" "), |s| LoggerTimezone::Unparsed(s)),
+        map(take_until(" "), LoggerTimezone::Unparsed),
     ));
 
     map(
