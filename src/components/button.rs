@@ -72,6 +72,7 @@ impl Component for Button {
             "duration-200",
             "px-4",
             "bg-white",
+            "text-brand-text",
             "disabled:cursor-not-allowed",
             "disabled:hover:bg-opacity-0",
             "disabled:hover:text-brand-text",

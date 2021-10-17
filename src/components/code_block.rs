@@ -1,6 +1,10 @@
 use yew::prelude::*;
 use yewtil::NeqAssign;
 
+use crate::components::{Button, ButtonSize};
+
+const LINE_LIMIT_COLLAPSED: usize = 100;
+
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct CodeBlockProps {
     #[prop_or_default]
@@ -15,21 +19,29 @@ pub struct CodeBlockProps {
 #[derive(Debug)]
 pub struct CodeBlock {
     props: CodeBlockProps,
+    link: ComponentLink<Self>,
+    expanded: bool,
 }
 
 impl Component for CodeBlock {
     type Message = ();
     type Properties = CodeBlockProps;
 
-    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
-        Self { props }
+    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
+        Self {
+            props,
+            link,
+            expanded: false,
+        }
     }
 
     fn update(&mut self, _msg: Self::Message) -> ShouldRender {
-        false
+        self.expanded = !self.expanded;
+        true
     }
 
     fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        self.expanded = false;
         self.props.neq_assign(props)
     }
 
@@ -42,13 +54,61 @@ impl Component for CodeBlock {
             "text-xs",
         );
 
+        let full_text = self.props.text.clone();
+
+        let (text, footer) = if self.expanded {
+            (full_text, html! {})
+        } else {
+            let text = full_text
+                .split('\n')
+                .take(LINE_LIMIT_COLLAPSED)
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            let footer = if text.len() == full_text.len() {
+                html! {}
+            } else {
+                html! {
+                    <div class=classes!(
+                        "m-[-1.6666667em]",
+                        "max-w-none",
+                        "w-full",
+                        "rounded-t-none",
+                        "rounded-b-2xl",
+                        "bg-brand-text",
+                        "text-brand-text-primary-active",
+                        "text-center",
+                        "mx-auto",
+                        "p-4",
+                    )>
+                        { format!("Only the first {} lines are currently shown above. ", LINE_LIMIT_COLLAPSED) }
+
+                        <Button
+                            classes=classes!("rounded-2xl")
+                            size=ButtonSize::Small
+                            text="Show all".to_owned()
+                            on_click=self.link.callback(|_| ())
+                        />
+
+                        { " (may take a little while)" }
+                    </div>
+                }
+            };
+
+            (text, footer)
+        };
+
         html! {
-            <pre class=classes>
-                <code>
-                    { self.props.text.clone() }
-                    { self.props.children.clone() }
-                </code>
-            </pre>
+            <>
+                <pre class=classes>
+                    <code>
+                        { text }
+                        { self.props.children.clone() }
+                    </code>
+                </pre>
+
+                { footer }
+            </>
         }
     }
 }
