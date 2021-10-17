@@ -10,10 +10,8 @@ mod common;
 mod desktop;
 mod ios;
 mod ios_filename;
-mod remote_object;
 
 pub use ios_filename::*;
-pub use remote_object::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Content {

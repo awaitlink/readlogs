@@ -8,7 +8,7 @@ use nom::{
     IResult,
 };
 
-use crate::{parsers::*, post_processing};
+use crate::{parsers::*, post_processing, remote_object};
 
 const LOGCAT_SECTION_NAME: &str = "LOGCAT";
 const LOGGER_SECTION_NAME: &str = "LOGGER";
@@ -115,9 +115,7 @@ fn info_section(depth: SectionLevel) -> impl FnMut(&str) -> IResult<&str, Sectio
                 common::multispaced0(alt((
                     many1(common::multispaced0(common::key_maybe_enabled_value)),
                     many1(common::multispaced0(thread)),
-                    map(remote_object::remote_object, |ro| {
-                        vec![InfoEntry::RemoteObject(ro)]
-                    }),
+                    map(remote_object, |ro| vec![InfoEntry::RemoteObject(ro)]),
                     value(vec![InfoEntry::LiteralNone], tag("None")),
                     many1(common::multispaced0(map(
                         preceded(peek(not(local_metrics_section)), is_not("\n-=")),
