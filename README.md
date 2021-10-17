@@ -4,8 +4,9 @@ Readlogs is an [unofficial](#disclaimer) web app for viewing [Signal](https://si
 To use it, create a debug log via the Signal app on your device as described in [this support article](https://support.signal.org/hc/en-us/articles/360007318591), then open [`readlogs.pages.dev`](https://readlogs.pages.dev/) and paste the URL there.
 
 ## Current functionality
-- View information and logs presented in various sections of debug logs in the form of tables.
+- View information and logs from various sections of debug logs, formatted as tables.
 - Search logs by setting a minimum log level (e.g. "Warn" to show warnings, errors, and more important log entries, if any) as well as using a (case-insensitive) search query.
+- View and download raw debug log files in plaintext (i.e. unarchived).
 
 ### Notable behavior
 - Log entries that span multiple lines (without introducing a new timestamp and other metadata) are assumed to be one log entry.
