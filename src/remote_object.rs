@@ -49,8 +49,11 @@ pub fn remote_object(input: &str) -> IResult<&str, RemoteObject> {
             pair(
                 verify(is_a("abcdef1234567890"), |s: &str| s.len() == KEY_LENGTH),
                 alt((
-                    value(Platform::Ios, tag(".zip")),
-                    value(Platform::Desktop, tag(".gz")),
+                    value(Platform::Ios, tag(Platform::Ios.debuglogs_url_ending())),
+                    value(
+                        Platform::Desktop,
+                        tag(Platform::Desktop.debuglogs_url_ending()),
+                    ),
                     value(Platform::Android, not(tag("."))),
                 )),
             ),
