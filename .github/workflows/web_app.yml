@@ -1,20 +1,34 @@
 on: [push, pull_request]
-name: Rust
+name: Web App
 jobs:
-  rust:
+  all:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Install Rust
+      - name: "Install: Rust"
         uses: actions-rs/toolchain@v1
         with:
           target: wasm32-unknown-unknown
           profile: minimal
           toolchain: stable
           components: rustfmt, clippy
-      - name: Install Trunk
+      - name: "Install: Trunk"
         run: wget -qO- https://github.com/thedodd/trunk/releases/download/v0.14.0/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
-      - name: Install CSS dependencies
+      - name: "Cache: Yarn"
+        uses: actions/setup-node@v2
+        with:
+          cache: 'yarn'
+      - name: "Cache: Cargo"
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: "Yarn: install"
         run: yarn install
       - name: "Trunk: build"
         run: ./trunk build
