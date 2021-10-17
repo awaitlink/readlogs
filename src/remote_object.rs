@@ -20,6 +20,10 @@ impl RemoteObject {
         self.platform
     }
 
+    pub fn key(&self) -> &str {
+        &self.key
+    }
+
     pub fn debuglogs_url(&self) -> String {
         "https://debuglogs.org/".to_owned() + &self.key + self.platform.debuglogs_url_ending()
     }

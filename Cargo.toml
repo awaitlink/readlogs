@@ -22,6 +22,8 @@ strum = "0.21"
 strum_macros = "0.21"
 chrono = { version = "0.4", features = ["wasmbind"] }
 zip = { version = "0.5", default-features = false, features = ["deflate"] }
+wasm-bindgen = "0.2"
+percent-encoding = "2.1"
 
 [dev-dependencies]
 test-case = "1.2"

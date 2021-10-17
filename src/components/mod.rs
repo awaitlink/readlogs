@@ -1,6 +1,7 @@
 mod badge;
 mod button;
 mod code_block;
+mod download_button;
 mod file_picker;
 mod icon;
 mod input;
@@ -15,6 +16,7 @@ mod toolbar;
 pub use badge::Badge;
 pub use button::{Button, ButtonSize};
 pub use code_block::CodeBlock;
+pub use download_button::DownloadButton;
 pub use file_picker::FilePicker;
 pub use icon::Icon;
 pub use input::Input;

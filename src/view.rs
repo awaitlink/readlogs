@@ -187,7 +187,7 @@ impl super::Model {
                         >
                             {
                                 for LogLevel::iter()
-                                    .filter(|variant| variant.applicable_to_platform(self.platform.unwrap()))
+                                    .filter(|variant| variant.applicable_to_platform(self.remote_object.as_ref().unwrap().platform()))
                                     .map(|variant| html! {
                                         <option selected={variant == self.pending_query.min_log_level}>{ variant }</option>
                                     })

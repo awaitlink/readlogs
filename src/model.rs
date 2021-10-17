@@ -104,9 +104,9 @@ impl Tab {
 pub struct Model {
     pub link: ComponentLink<Self>,
     pub state: State,
-    pub platform: Option<Platform>,
     pub debug_log_input: NodeRef,
     pub debug_log_url: String,
+    pub remote_object: Option<RemoteObject>,
     pub tab: Tab,
     pub pending_query: SearchQuery,
     pub active_query: SearchQuery,
@@ -121,9 +121,9 @@ impl Component for Model {
         Self {
             link,
             state: Default::default(),
-            platform: None,
             debug_log_input: NodeRef::default(),
             debug_log_url: Default::default(),
+            remote_object: None,
             tab: Default::default(),
             pending_query: Default::default(),
             active_query: Default::default(),
@@ -181,16 +181,16 @@ impl Model {
                         .parse::<RemoteObject>()
                         .context("failed to parse the debug log URL")?;
 
-                    self.debug_log_url = reference.debuglogs_url();
-                    self.platform = Some(reference.platform());
-
                     let new_state = State::Fetching(
-                        match self.platform.unwrap() {
+                        match reference.platform() {
                             Platform::Ios => Self::fetch_binary,
                             _ => Self::fetch,
                         }(self, &reference.fetchable_url())
                         .context("failed to start fetching debug log")?,
                     );
+
+                    self.debug_log_url = reference.debuglogs_url();
+                    self.remote_object = Some(reference);
 
                     Ok(self.state.neq_assign(new_state))
                 }
@@ -198,7 +198,7 @@ impl Model {
             },
             Msg::FinishedFetchText(data) => {
                 let text = data.context("fetching debug log finished unsuccessfully")?;
-                let file = File::from_text(self.platform.unwrap(), text)?;
+                let file = File::from_text(self.remote_object.clone().unwrap(), None, text)?;
 
                 Ok(self.state.neq_assign(State::Ready(Object::Single(file))))
             }
@@ -224,7 +224,10 @@ impl Model {
                     let text = String::from_utf8(bytes)
                         .context("couldn't turn a `Vec<u8>` into a `String`")?;
 
-                    files.insert(name, File::from_text(self.platform.unwrap(), text)?);
+                    files.insert(
+                        Rc::clone(&name),
+                        File::from_text(self.remote_object.clone().unwrap(), Some(name), text)?,
+                    );
                 }
 
                 ensure!(!files.is_empty(), "no files in zip"); // TODO: maybe should just be a notice instead of an error
