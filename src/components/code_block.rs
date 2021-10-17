@@ -41,8 +41,10 @@ impl Component for CodeBlock {
     }
 
     fn change(&mut self, props: Self::Properties) -> ShouldRender {
-        self.expanded = false;
-        self.props.neq_assign(props)
+        let expanded_changed = self.expanded.neq_assign(false);
+        let props_changed = self.props.neq_assign(props);
+
+        expanded_changed || props_changed
     }
 
     fn view(&self) -> Html {
