@@ -50,8 +50,8 @@ impl LogLevel {
 
     pub fn color(&self) -> Classes {
         match self {
-            Trace | Verbose => classes!("text-blue-600"),
-            Debug => classes!("text-green-600"),
+            Trace | Verbose => classes!("text-green-600"),
+            Debug => classes!("text-blue-600"),
             Info => classes!(),
             Warn => classes!("text-yellow-600"),
             Error => classes!("text-rose-600"),
