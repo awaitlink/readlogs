@@ -32,6 +32,7 @@ pub enum InfoEntry {
     KeyEnabledValue(String, bool, Option<Value>),
     RemoteObject(RemoteObject),
     LiteralNone,
+    GenericTable(GenericTable),
     Generic(String),
 }
 
@@ -39,6 +40,12 @@ pub enum InfoEntry {
 pub enum Value {
     Generic(String),
     BucketedFlag(Vec<Bucket>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GenericTable {
+    pub header: Vec<String>,
+    pub rows: Vec<Vec<String>>,
 }
 
 impl Default for Value {
@@ -194,6 +201,32 @@ impl InfoEntry {
                 />
             },
             InfoEntry::LiteralNone => html! { <p>{ "None" }</p> },
+            InfoEntry::GenericTable(table) => html! {
+                <Table>
+                    <thead>
+                        <TableRow>
+                            {
+                                for table.header.iter().map(|item| html! {
+                                    <TableItem>{ item.clone() }</TableItem>
+                                })
+                            }
+                        </TableRow>
+                    </thead>
+                    <tbody>
+                        {
+                            for table.rows.iter().map(|row| html! {
+                                <TableRow>
+                                    {
+                                        for row.iter().map(|item| html! {
+                                            <TableItem>{ item.clone() }</TableItem>
+                                        })
+                                    }
+                                </TableRow>
+                            })
+                        }
+                    </tbody>
+                </Table>
+            },
             InfoEntry::Generic(text) => html! { text.to_owned() + "\n" },
         }
     }

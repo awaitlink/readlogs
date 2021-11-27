@@ -97,6 +97,33 @@ fn local_metrics_section(input: &str) -> IResult<&str, Section<InfoEntry>> {
     )(input)
 }
 
+fn generic_table(input: &str) -> IResult<&str, GenericTable> {
+    let row = |input| {
+        delimited(
+            tag("|"),
+            map(
+                separated_list1(tag("|"), is_not("|\n")),
+                |items: Vec<&str>| {
+                    items
+                        .iter()
+                        .map(|s| s.trim().to_owned())
+                        .collect::<Vec<_>>()
+                },
+            ),
+            tag("|"),
+        )(input)
+    };
+
+    map(
+        separated_pair(
+            terminated(row, newline),
+            tuple((many1(pair(tag("|"), many1(tag("-")))), tag("|"), newline)),
+            many0(terminated(row, opt(newline))),
+        ),
+        |(header, rows)| GenericTable { header, rows },
+    )(input)
+}
+
 fn info_section(depth: SectionLevel) -> impl FnMut(&str) -> IResult<&str, Section<InfoEntry>> {
     move |input| {
         let section_header_parser = match depth {
@@ -111,8 +138,9 @@ fn info_section(depth: SectionLevel) -> impl FnMut(&str) -> IResult<&str, Sectio
 
         let (remainder, content) = alt((
             preceded(
-                peek(not(jobs_inline_section)),
+                peek(common::multispaced0(not(jobs_inline_section))),
                 common::multispaced0(alt((
+                    map(generic_table, |table| vec![InfoEntry::GenericTable(table)]),
                     many1(common::multispaced0(common::key_maybe_enabled_value)),
                     many1(common::multispaced0(thread)),
                     map(remote_object, |ro| vec![InfoEntry::RemoteObject(ro)]),
@@ -554,6 +582,41 @@ mod tests {
                 }
             ],
         }; "blocked threads"
+    )]
+    #[test_case(
+        "===== REMAPPED RECORDS =====\n--- Recipients\n\n| _id | old_id | new_id |\n|-----|--------|--------|\n| 1   | 23     | 456    |\n| 2   | 345    | 678    |\n\n--- Threads\n\n| _id | old_id | new_id |\n|-----|--------|--------|\n| 3   | 45     | 678    |\n| 4   | 567    | 890    |" =>
+        Section {
+            name: "REMAPPED RECORDS".to_owned(),
+            content: vec![],
+            subsections: vec![
+                Section {
+                    name: "Recipients".to_owned(),
+                    content: vec![
+                        InfoEntry::GenericTable(GenericTable {
+                            header: vec!["_id".to_owned(), "old_id".to_owned(), "new_id".to_owned()],
+                            rows: vec![
+                                vec!["1".to_owned(), "23".to_owned(), "456".to_owned()],
+                                vec!["2".to_owned(), "345".to_owned(), "678".to_owned()],
+                            ]
+                        }),
+                    ],
+                    subsections: vec![],
+                },
+                Section {
+                    name: "Threads".to_owned(),
+                    content: vec![
+                        InfoEntry::GenericTable(GenericTable {
+                            header: vec!["_id".to_owned(), "old_id".to_owned(), "new_id".to_owned()],
+                            rows: vec![
+                                vec!["3".to_owned(), "45".to_owned(), "678".to_owned()],
+                                vec!["4".to_owned(), "567".to_owned(), "890".to_owned()],
+                            ]
+                        }),
+                    ],
+                    subsections: vec![],
+                }
+            ],
+        }; "remapped records"
     )]
     #[test_case(
         "\n\n \n====== EMPTY SECTION ======\n" =>

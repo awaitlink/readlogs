@@ -54,11 +54,18 @@ macro_rules! impl_from_str {
     };
 }
 
-pub fn parsing_test<'a, T>(
+pub fn parsing_test<'a, T: std::fmt::Debug>(
     f: impl FnOnce(&'a str) -> nom::IResult<&'a str, T>,
     input: &'a str,
 ) -> T {
     let (remainder, result) = f(input).unwrap();
-    assert_eq!(remainder, "", "remainder should be empty");
+
+    if !remainder.is_empty() {
+        panic!(
+            "incomplete parsing, got: {:#?}, remainder: {:?}",
+            result, remainder
+        );
+    }
+
     result
 }
