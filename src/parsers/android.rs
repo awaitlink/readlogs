@@ -138,7 +138,7 @@ fn info_section(depth: SectionLevel) -> impl FnMut(&str) -> IResult<&str, Sectio
 
         let (remainder, content) = alt((
             preceded(
-                peek(common::multispaced0(not(jobs_inline_section))),
+                peek(not(jobs_inline_section)),
                 common::multispaced0(alt((
                     map(generic_table, |table| vec![InfoEntry::GenericTable(table)]),
                     many1(common::multispaced0(common::key_maybe_enabled_value)),
