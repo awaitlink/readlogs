@@ -194,8 +194,8 @@ fn logcat_entry(year: i32) -> impl FnMut(&str) -> IResult<&str, LogEntry> {
                 timestamp: dt.to_string(),
                 level: Some(level.parse().unwrap()),
                 meta: PlatformMetadata::AndroidLogcat {
-                    thread_id: thread_id.to_owned(),
                     process_id: process_id.to_owned(),
+                    thread_id: thread_id.to_owned(),
                     tag: tag.trim().to_owned(),
                 },
                 message: message.to_owned(),
