@@ -33,7 +33,10 @@ pub enum Msg {
 #[derive(Debug, PartialEq)]
 pub enum Object {
     Single(File),
-    Multiple(BTreeMap<Rc<LogFilename>, File>, Rc<LogFilename>),
+    Multiple {
+        files: BTreeMap<Rc<LogFilename>, File>,
+        active_filename: Rc<LogFilename>,
+    },
 }
 
 #[derive(Debug, IsVariant)]
@@ -154,9 +157,10 @@ impl Model {
     pub(super) fn active_file(&self) -> &File {
         match &self.state {
             State::Ready(Object::Single(file)) => file,
-            State::Ready(Object::Multiple(files, active_filename)) => {
-                files.get(active_filename).unwrap()
-            }
+            State::Ready(Object::Multiple {
+                files,
+                active_filename,
+            }) => files.get(active_filename).unwrap(),
             _ => panic!("State is not `Ready`"),
         }
     }
@@ -239,12 +243,16 @@ impl Model {
                             .unwrap_or_else(|| last_for_app_id(AppId::ShareAppExtension).unwrap())
                     }));
 
-                Ok(self
-                    .state
-                    .neq_assign(State::Ready(Object::Multiple(files, active_filename))))
+                Ok(self.state.neq_assign(State::Ready(Object::Multiple {
+                    files,
+                    active_filename,
+                })))
             }
             Msg::UpdateActiveFile(filename) => Ok(
-                if let State::Ready(Object::Multiple(_, active_filename)) = &mut self.state {
+                if let State::Ready(Object::Multiple {
+                    active_filename, ..
+                }) = &mut self.state
+                {
                     active_filename.neq_assign(filename)
                 } else {
                     false

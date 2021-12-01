@@ -144,7 +144,7 @@ fn info_section(depth: SectionLevel) -> impl FnMut(&str) -> IResult<&str, Sectio
                     many1(common::multispaced0(common::key_maybe_enabled_value)),
                     many1(common::multispaced0(thread)),
                     map(remote_object, |ro| vec![InfoEntry::RemoteObject(ro)]),
-                    value(vec![InfoEntry::LiteralNone], tag("None")),
+                    value(vec![InfoEntry::ExplicitNone], tag("None")),
                     many1(common::multispaced0(map(
                         preceded(peek(not(local_metrics_section)), is_not("\n-=")),
                         |s: &str| InfoEntry::Generic(s.to_owned()),
@@ -193,11 +193,11 @@ fn logcat_entry(year: i32) -> impl FnMut(&str) -> IResult<&str, LogEntry> {
             |(dt, _, process_id, _, thread_id, _, level, _, tag, _, _, message)| LogEntry {
                 timestamp: dt.to_string(),
                 level: Some(level.parse().unwrap()),
-                meta: PlatformMetadata::AndroidLogcat(
-                    process_id.to_owned(),
-                    thread_id.to_owned(),
-                    tag.trim().to_owned(),
-                ),
+                meta: PlatformMetadata::AndroidLogcat {
+                    thread_id: thread_id.to_owned(),
+                    process_id: process_id.to_owned(),
+                    tag: tag.trim().to_owned(),
+                },
                 message: message.to_owned(),
             },
         )(input)
@@ -269,11 +269,11 @@ fn logger_metadata(input: &str) -> IResult<&str, (PlatformMetadata, String, LogL
         )),
         |(version, _, thread_id, _, dt, _, tz, _, level, _, tag, _)| {
             (
-                PlatformMetadata::AndroidLogger(
-                    version.to_owned(),
-                    thread_id.trim().to_owned(),
-                    tag.trim().to_owned(),
-                ),
+                PlatformMetadata::AndroidLogger {
+                    version: version.to_owned(),
+                    thread_id: thread_id.trim().to_owned(),
+                    tag: tag.trim().to_owned(),
+                },
                 match tz {
                     LoggerTimezone::Parsed(tz) => tz.from_local_datetime(&dt).unwrap().to_string(),
                     LoggerTimezone::Unparsed(s) => dt.to_string() + " " + s,
@@ -413,7 +413,7 @@ mod tests {
                 },
                 Section {
                     name: "Dependencies".to_owned(),
-                    content: vec![InfoEntry::LiteralNone],
+                    content: vec![InfoEntry::ExplicitNone],
                     subsections: vec![],
                 },
             ],
@@ -633,13 +633,13 @@ mod tests {
     #[test_case("01-23 12:34:56.789 12345 12367 I abc: Log message" => LogEntry {
         timestamp: NaiveDate::from_ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string(),
         level: Some(LogLevel::Info),
-        meta: PlatformMetadata::AndroidLogcat("12345".to_owned(), "12367".to_owned(), "abc".to_owned()),
+        meta: PlatformMetadata::AndroidLogcat { process_id: "12345".to_owned(), thread_id: "12367".to_owned(), tag: "abc".to_owned() },
         message: "Log message".to_owned(),
     }; "basic")]
     #[test_case("01-23 12:34:56.789 12345 12367 I abc: " => LogEntry {
         timestamp: NaiveDate::from_ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string(),
         level: Some(LogLevel::Info),
-        meta: PlatformMetadata::AndroidLogcat("12345".to_owned(), "12367".to_owned(), "abc".to_owned()),
+        meta: PlatformMetadata::AndroidLogcat { process_id: "12345".to_owned(), thread_id: "12367".to_owned(), tag: "abc".to_owned() },
         message: "".to_owned(),
     }; "no message")]
     fn logcat_entry_ok(input: &str) -> LogEntry {
@@ -657,7 +657,7 @@ mod tests {
                     LogEntry {
                         timestamp: NaiveDate::from_ymd(1234, 1, 21).and_hms_milli(12, 34, 56, 789).to_string(),
                         level: Some(LogLevel::Fatal),
-                        meta: PlatformMetadata::AndroidLogcat("1234".to_owned(), "5678".to_owned(), "libc".to_owned()),
+                        meta: PlatformMetadata::AndroidLogcat { process_id: "1234".to_owned(), thread_id: "5678".to_owned(), tag: "libc".to_owned() },
                         message: "Fatal signal 11 (SIGSEGV), code 2, fault addr 0x12345678 in tid 9876 (Abc)".to_owned(),
                     }
                 ],
@@ -669,13 +669,13 @@ mod tests {
                     LogEntry {
                         timestamp: NaiveDate::from_ymd(1234, 1, 22).and_hms_milli(12, 34, 56, 789).to_string(),
                         level: Some(LogLevel::Info),
-                        meta: PlatformMetadata::AndroidLogcat("12345".to_owned(), "12367".to_owned(), "chatty".to_owned()),
+                        meta: PlatformMetadata::AndroidLogcat { process_id: "12345".to_owned(), thread_id: "12367".to_owned(), tag: "chatty".to_owned() },
                         message: "uid=10001(org.thoughtcrime.securesms) expire 1 line".to_owned(),
                     },
                     LogEntry {
                         timestamp: NaiveDate::from_ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string(),
                         level: Some(LogLevel::Info),
-                        meta: PlatformMetadata::AndroidLogcat("12345".to_owned(), "12367".to_owned(), "chatty".to_owned()),
+                        meta: PlatformMetadata::AndroidLogcat { process_id: "12345".to_owned(), thread_id: "12367".to_owned(), tag: "chatty".to_owned() },
                         message: "uid=10001(org.thoughtcrime.securesms) expire 5 lines".to_owned(),
                     },
                 ],
@@ -690,19 +690,19 @@ mod tests {
     #[test_case("[1.23.4] [5678 ] 1234-01-23 12:34:56.789 GMT+01:00 I abc: Log message" => LogEntry {
         timestamp: FixedOffset::east(1 * 3600).ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string(),
         level: Some(LogLevel::Info),
-        meta: PlatformMetadata::AndroidLogger("1.23.4".to_owned(), "5678".to_owned(), "abc".to_owned()),
+        meta: PlatformMetadata::AndroidLogger { version: "1.23.4".to_owned(), thread_id: "5678".to_owned(), tag: "abc".to_owned() },
         message: "Log message".to_owned(),
     }; "basic")]
     #[test_case("[1.23.4] [5678 ] 1234-01-23 12:34:56.789 GMT+01:00 I abc: Log message\ncontinues here!" => LogEntry {
         timestamp: FixedOffset::east(1 * 3600).ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string(),
         level: Some(LogLevel::Info),
-        meta: PlatformMetadata::AndroidLogger("1.23.4".to_owned(), "5678".to_owned(), "abc".to_owned()),
+        meta: PlatformMetadata::AndroidLogger { version: "1.23.4".to_owned(), thread_id: "5678".to_owned(), tag: "abc".to_owned() },
         message: "Log message\ncontinues here!".to_owned(),
     }; "multiline")]
     #[test_case("[1.23.4] [5678 ] 1234-01-23 12:34:56.789 ABC I abc: Log message" => LogEntry {
         timestamp: NaiveDate::from_ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string() + " ABC",
         level: Some(LogLevel::Info),
-        meta: PlatformMetadata::AndroidLogger("1.23.4".to_owned(), "5678".to_owned(), "abc".to_owned()),
+        meta: PlatformMetadata::AndroidLogger { version: "1.23.4".to_owned(), thread_id: "5678".to_owned(), tag: "abc".to_owned() },
         message: "Log message".to_owned(),
     }; "timestamp not in GMT+hh:mm format")]
     fn logger_entry_ok(input: &str) -> LogEntry {
@@ -732,11 +732,11 @@ mod tests {
                                     .and_hms_milli(12, 34, 56, 789)
                                     .to_string(),
                                 level: Some(LogLevel::Info),
-                                meta: PlatformMetadata::AndroidLogger(
-                                    "1.23.4".to_owned(),
-                                    "5678".to_owned(),
-                                    "abc".to_owned(),
-                                ),
+                                meta: PlatformMetadata::AndroidLogger {
+                                    version: "1.23.4".to_owned(),
+                                    thread_id: "5678".to_owned(),
+                                    tag: "abc".to_owned(),
+                                },
                                 message: "Log message".to_owned(),
                             },
                             LogEntry {
@@ -745,11 +745,11 @@ mod tests {
                                     .and_hms_milli(12, 34, 56, 790)
                                     .to_string(),
                                 level: Some(LogLevel::Warn),
-                                meta: PlatformMetadata::AndroidLogger(
-                                    "1.23.4".to_owned(),
-                                    "5678".to_owned(),
-                                    "abc".to_owned(),
-                                ),
+                                meta: PlatformMetadata::AndroidLogger {
+                                    version: "1.23.4".to_owned(),
+                                    thread_id: "5678".to_owned(),
+                                    tag: "abc".to_owned(),
+                                },
                                 message: "Log message 2".to_owned(),
                             },
                         ],

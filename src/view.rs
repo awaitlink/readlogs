@@ -6,7 +6,10 @@ use crate::{components::*, *};
 impl super::Model {
     pub fn view_inner(&self) -> Html {
         let file_picker = match &self.state {
-            State::Ready(Object::Multiple(files, active_filename)) => html! {
+            State::Ready(Object::Multiple {
+                files,
+                active_filename,
+            }) => html! {
                 <FilePicker
                     classes=classes!("mb-8")
                     files=files.keys().cloned().collect::<Vec<_>>()

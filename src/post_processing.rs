@@ -51,11 +51,11 @@ mod tests {
                 .and_hms_milli(12, 34, 56, 789)
                 .to_string(),
             level: Some(LogLevel::Info),
-            meta: PlatformMetadata::AndroidLogcat(
-                "12345".to_owned(),
-                "12367".to_owned(),
-                "abc".to_owned(),
-            ),
+            meta: PlatformMetadata::AndroidLogcat {
+                process_id: "12345".to_owned(),
+                thread_id: "12367".to_owned(),
+                tag: "abc".to_owned(),
+            },
             message: "Part 1".to_owned(),
         };
 

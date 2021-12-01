@@ -31,7 +31,7 @@ pub enum InfoEntry {
     KeyValue(String, Value),
     KeyEnabledValue(String, bool, Option<Value>),
     RemoteObject(RemoteObject),
-    LiteralNone,
+    ExplicitNone,
     GenericTable(GenericTable),
     Generic(String),
 }
@@ -70,8 +70,16 @@ pub struct LogEntry {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PlatformMetadata {
-    AndroidLogcat(String, String, String),
-    AndroidLogger(String, String, String),
+    AndroidLogcat {
+        process_id: String,
+        thread_id: String,
+        tag: String,
+    },
+    AndroidLogger {
+        version: String,
+        thread_id: String,
+        tag: String,
+    },
     Ios(Option<ios::LogEntryMetadata>),
     Desktop,
 }
@@ -200,7 +208,7 @@ impl InfoEntry {
                     href=ro.debuglogs_url()
                 />
             },
-            InfoEntry::LiteralNone => html! { <p>{ "None" }</p> },
+            InfoEntry::ExplicitNone => html! { <p>{ "None" }</p> },
             InfoEntry::GenericTable(table) => html! {
                 <Table>
                     <thead>
@@ -289,14 +297,14 @@ impl Section<LogEntry> {
 
                             {
                                 match &self.content.get(0).unwrap().meta { // TODO: assumption?
-                                    PlatformMetadata::AndroidLogcat(_, _, _) => html! {
+                                    PlatformMetadata::AndroidLogcat { .. } => html! {
                                         <>
                                             <TableItem tag="th">{ "Process" }</TableItem>
                                             <TableItem tag="th">{ "Thread" }</TableItem>
                                             <TableItem tag="th">{ "Tag" }</TableItem>
                                         </>
                                     },
-                                    PlatformMetadata::AndroidLogger(_, _, _) => html! {
+                                    PlatformMetadata::AndroidLogger { .. } => html! {
                                         <>
                                             <TableItem tag="th">{ "Version" }</TableItem>
                                             <TableItem tag="th">{ "Thread" }</TableItem>
@@ -358,12 +366,16 @@ impl LogEntry {
 impl PlatformMetadata {
     pub fn contains(&self, s: &str) -> bool {
         match &self {
-            PlatformMetadata::AndroidLogcat(process_id, thread_id, tag) => {
-                process_id.contains(s) || thread_id.contains(s) || tag.contains(s)
-            }
-            PlatformMetadata::AndroidLogger(version, thread_id, tag) => {
-                version.contains(s) || thread_id.contains(s) || tag.contains(s)
-            }
+            PlatformMetadata::AndroidLogcat {
+                process_id,
+                thread_id,
+                tag,
+            } => process_id.contains(s) || thread_id.contains(s) || tag.contains(s),
+            PlatformMetadata::AndroidLogger {
+                version,
+                thread_id,
+                tag,
+            } => version.contains(s) || thread_id.contains(s) || tag.contains(s),
             PlatformMetadata::Ios(Some(meta)) => {
                 meta.file.to_lowercase().contains(s)
                     || meta.line.to_lowercase().contains(s)
@@ -375,14 +387,22 @@ impl PlatformMetadata {
 
     pub fn view(self) -> Html {
         match self {
-            PlatformMetadata::AndroidLogcat(process_id, thread_id, tag) => html! {
+            PlatformMetadata::AndroidLogcat {
+                process_id,
+                thread_id,
+                tag,
+            } => html! {
                 <>
                     <TableItem>{ process_id }</TableItem>
                     <TableItem>{ thread_id }</TableItem>
                     <TableItem>{ tag }</TableItem>
                 </>
             },
-            PlatformMetadata::AndroidLogger(version, thread_id, tag) => html! {
+            PlatformMetadata::AndroidLogger {
+                version,
+                thread_id,
+                tag,
+            } => html! {
                 <>
                     <TableItem>{ version }</TableItem>
                     <TableItem>{ thread_id }</TableItem>
