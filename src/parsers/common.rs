@@ -50,7 +50,10 @@ fn bucket(input: &str) -> IResult<&str, Bucket> {
 }
 
 pub fn bucketed_flag(input: &str) -> IResult<&str, Vec<Bucket>> {
-    separated_list1(tag(","), bucket)(input)
+    terminated(
+        separated_list1(tag(","), bucket),
+        peek(alt((tag("\n"), eof))),
+    )(input)
 }
 
 pub fn key_maybe_enabled_value(input: &str) -> IResult<&str, InfoEntry> {
@@ -255,6 +258,10 @@ mod tests {
         false,
         Some(Value::Generic("//../.123//..abc".to_owned())),
     )); "followed by 1 newline")]
+    #[test_case("abc.defGhi.jkl123: 12:34:56\n" => ("\n", InfoEntry::KeyValue(
+        "abc.defGhi.jkl123".to_owned(),
+        Value::Generic("12:34:56".to_owned()),
+    )); "time in value")]
     #[test_case("abc: disabled true\n\n========= Logs =========\nINFO  1234-01-23T12:34:56.789Z This is a test message." => (
         "\n\n========= Logs =========\nINFO  1234-01-23T12:34:56.789Z This is a test message.",
         InfoEntry::KeyEnabledValue(
