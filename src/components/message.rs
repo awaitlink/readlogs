@@ -46,16 +46,18 @@ impl Component for Message {
             "p-4",
             "rounded-2xl",
             "border-brand-border",
+            "dark:border-brand-dark-border",
             "prose",
+            "dark:prose-invert",
             "prose-sm",
             "max-w-max",
             "mx-auto",
         );
 
         classes.push(if self.props.error {
-            "bg-red-100"
+            classes!("bg-red-100")
         } else {
-            "bg-brand-bg"
+            classes!("bg-brand-bg-message", "dark:bg-brand-dark-bg-message")
         });
 
         let heading = match &self.props.heading {

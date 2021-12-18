@@ -25,7 +25,7 @@ impl super::Model {
             _ => html! {},
         };
 
-        let mut wrapper_classes = classes!("mb-4", "py-4", "bg-white");
+        let mut wrapper_classes = classes!("mb-4", "py-4", "bg-brand-bg", "dark:bg-brand-dark-bg");
 
         if !self.ui_expanded {
             wrapper_classes.push(classes!(
@@ -46,7 +46,7 @@ impl super::Model {
                         { file_picker }
                     </div>
 
-                    <div class="mx-4 prose prose-sm max-w-max mt-8">
+                    <div class="mx-4 prose dark:prose-invert prose-sm max-w-max mt-8">
                         { active_file }
                     </div>
                 </div>
@@ -86,7 +86,7 @@ impl super::Model {
                     {" URL and press " }
                     <span>{ self.view_submit_button(ButtonSize::Small) }</span>
                     { " or " }
-                    <Badge classes=classes!("bg-white") text="Enter ⏎" />
+                    <Badge classes=classes!("bg-brand-bg", "dark:bg-brand-dark-bg") text="Enter ⏎" />
                     { "." }
                 </Message>
             },
@@ -127,11 +127,11 @@ impl super::Model {
                 classes_outer=classes!("fixed", "bottom-0")
                 classes_mid=classes!("rounded-t-2xl")
             >
-                <div class="flex flex-col gap-y-2 flex-grow">
+                <div class="flex flex-col gap-y-2 grow">
                     { self.view_search_toolbar_row() }
 
-                    <div class="flex flex-grow">
-                        <div class="flex flex-grow">
+                    <div class="flex grow">
+                        <div class="flex grow">
                             { for Tab::iter().map(|tab| self.view_tab_button(tab)) }
                         </div>
 
@@ -168,18 +168,23 @@ impl super::Model {
                     self.pending_query.min_log_level.color(),
                     "rounded-l-2xl",
                     "border-brand-border",
+                    "dark:border-brand-dark-border",
                     "!border-r-0",
                     "shadow-sm",
                     "focus:border-brand-border",
+                    "dark:focus:border-brand-dark-border",
                     "focus:ring",
                     "focus:ring-brand-focus",
+                    "dark:focus:ring-brand-dark-focus",
                     "focus:ring-opacity-50",
                     "transition",
                     "duration-200",
+                    "bg-brand-bg",
+                    "dark:bg-brand-dark-bg",
                 );
 
                 html! {
-                    <div class="flex flex-grow">
+                    <div class="flex grow">
                         <select
                             value=self.pending_query.min_log_level.to_string()
                             onchange=self.link.callback(|change: ChangeData| match change {
@@ -227,7 +232,7 @@ impl super::Model {
     pub fn view_tab_button(&self, tab: Tab) -> Html {
         html! {
             <Button
-                classes=classes!("flex-grow")
+                classes=classes!("grow")
                 size=ButtonSize::Medium
                 on_click=self.link.callback(move |_| Msg::UpdateTab(tab))
                 active=self.tab == tab
@@ -239,8 +244,8 @@ impl super::Model {
 
     pub fn view_footer(&self) -> Html {
         html! {
-            <footer class="bg-brand-bg-footer mb-24 px-8 pb-12 pt-6 text-center">
-                <article class="prose prose-sm mx-auto">
+            <footer class="bg-brand-bg-footer dark:bg-brand-dark-bg-footer mb-24 px-8 pb-12 pt-6 text-center">
+                <article class="prose dark:prose-invert prose-sm mx-auto">
                     <p>
                         <Link href="https://github.com/u32i64/readlogs" text="Readlogs" no_referrer=false no_follow=false/>
                         { " is an unofficial project. It is not affilated with the Signal Technology Foundation or Signal Messenger, LLC." }

@@ -71,21 +71,29 @@ impl Component for Button {
             "transition",
             "duration-200",
             "px-4",
-            "bg-white",
+            "bg-brand-bg",
+            "dark:bg-brand-dark-bg",
             "text-brand-text",
+            "dark:text-brand-dark-text",
             "disabled:cursor-not-allowed",
             "disabled:hover:bg-opacity-0",
             "disabled:hover:text-brand-text",
+            "dark:disabled:hover:text-brand-dark-text",
             "disabled:opacity-50",
             "border",
             "border-brand-border",
+            "dark:border-brand-dark-border",
             "hover:bg-brand-primary-hover",
+            "dark:hover:bg-brand-dark-primary-hover",
             "hover:text-brand-text-primary-hover",
+            "dark:hover:text-brand-dark-text-primary-hover",
             "focus:outline-none",
             "focus:ring",
             "focus:ring-brand-focus",
+            "dark:focus:ring-brand-dark-focus",
             "focus:ring-opacity-50",
             "focus:border-brand-focus",
+            "dark:focus:border-brand-dark-focus",
             "first:rounded-l-2xl",
             "first:border-r-0",
             "last:rounded-r-2xl",
@@ -106,7 +114,12 @@ impl Component for Button {
         });
 
         classes.push(if self.props.active {
-            classes!("bg-brand-primary-active", "text-brand-text-primary-active")
+            classes!(
+                "bg-brand-primary-active",
+                "dark:bg-brand-dark-primary-active",
+                "text-brand-text-primary-active",
+                "dark:text-brand-dark-text-primary-active"
+            )
         } else {
             classes!()
         });

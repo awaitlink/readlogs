@@ -74,11 +74,18 @@ impl FilePicker {
         let mut classes = classes!(
             "cursor-pointer",
             "hover:bg-brand-primary-hover",
-            "hover:text-brand-text-primary-hover"
+            "dark:hover:bg-brand-dark-primary-hover",
+            "hover:text-brand-text-primary-hover",
+            "dark:hover:text-brand-dark-text-primary-hover"
         );
 
         classes.push(if active {
-            classes!("bg-brand-primary-active", "text-brand-text-primary-active")
+            classes!(
+                "bg-brand-primary-active",
+                "dark:bg-brand-dark-primary-active",
+                "text-brand-text-primary-active",
+                "dark:text-brand-dark-text-primary-active"
+            )
         } else {
             classes!()
         });

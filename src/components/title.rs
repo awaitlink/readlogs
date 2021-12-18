@@ -81,7 +81,7 @@ impl Component for Title {
 
         let meta = match &self.props.meta {
             Some(meta) => html! {
-                <Badge classes=classes!("bg-brand-bg", "ml-2") text=meta.clone() />
+                <Badge classes=classes!("bg-brand-bg-message", "dark:bg-brand-dark-bg-message", "ml-2") text=meta.clone() />
             },
             None => html! {},
         };

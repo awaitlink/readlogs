@@ -59,7 +59,7 @@ impl Component for Input {
         let classes = classes!(
             self.props.classes.clone(),
             "z-10",
-            "flex-grow",
+            "grow",
             "min-w-0",
             "px-4",
             "transition",
@@ -68,8 +68,14 @@ impl Component for Input {
             "focus:outline-none",
             "focus:ring",
             "focus:ring-brand-focus",
+            "dark:focus:ring-brand-dark-focus",
             "focus:ring-opacity-50",
             "focus:border-brand-focus",
+            "dark:focus:border-brand-dark-focus",
+            "bg-brand-bg-text-field",
+            "dark:bg-brand-dark-bg-text-field",
+            "border-brand-border",
+            "dark:border-brand-dark-border",
         );
 
         html! {

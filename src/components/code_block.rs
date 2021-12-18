@@ -48,13 +48,17 @@ impl Component for CodeBlock {
     }
 
     fn view(&self) -> Html {
-        let classes = classes!(
+        let mut classes = classes!(
             self.props.classes.clone(),
             "rounded-2xl",
             "p-4",
             "overflow-x-auto",
             "text-xs",
         );
+
+        if !self.expanded {
+            classes.push(classes!("mb-0", "rounded-b-none"));
+        }
 
         let full_text = self.props.text.clone();
 
@@ -72,13 +76,14 @@ impl Component for CodeBlock {
             } else {
                 html! {
                     <div class=classes!(
-                        "m-[-1.6666667em]",
                         "max-w-none",
                         "w-full",
                         "rounded-t-none",
                         "rounded-b-2xl",
-                        "bg-brand-text",
-                        "text-brand-text-primary-active",
+                        "bg-brand-bg-message",
+                        "dark:bg-brand-dark-bg-message",
+                        "text-brand-text",
+                        "dark:text-brand-dark-text",
                         "text-center",
                         "mx-auto",
                         "p-4",

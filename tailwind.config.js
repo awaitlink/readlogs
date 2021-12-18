@@ -1,11 +1,10 @@
 const defaultTheme = require("tailwindcss/defaultTheme");
 const colors = require("tailwindcss/colors");
 
-const baseColor = colors.coolGray;
+const baseColor = colors.gray;
 
 module.exports = {
-  mode: "jit",
-  purge: [
+  content: [
     "./index.html",
     "./src/**/*.rs",
   ],
@@ -19,9 +18,6 @@ module.exports = {
         sans: ["Inter var", ...defaultTheme.fontFamily.sans],
       },
       colors: {
-        rose: colors.rose,
-        fuchsia: colors.fuchsia,
-
         brand: {
           "text": baseColor[600],
           "text-primary-hover": baseColor[100],
@@ -35,8 +31,29 @@ module.exports = {
 
           "focus": baseColor[600],
 
+          "bg-message": baseColor[200],
           "bg": baseColor[100],
           "bg-footer": baseColor[50],
+          "bg-text-field": baseColor[50],
+
+          dark: {
+            "text": baseColor[300],
+            "text-primary-hover": baseColor[800],
+            "text-primary-active": baseColor[800],
+
+            "primary-hover": baseColor[400],
+            "primary-active": baseColor[400],
+
+            "border": baseColor[400],
+            "border-table": baseColor[700],
+
+            "focus": baseColor[500],
+
+            "bg-message": baseColor[700],
+            "bg": baseColor[800],
+            "bg-footer": baseColor[900],
+            "bg-text-field": baseColor[900],
+          }
         }
       },
     },
