@@ -1,5 +1,4 @@
 use yew::prelude::*;
-use yewtil::NeqAssign;
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct LinkProps {
@@ -22,48 +21,27 @@ pub struct LinkProps {
     pub new_tab: bool,
 }
 
-#[derive(Debug)]
-pub struct Link {
-    props: LinkProps,
-}
+#[function_component(Link)]
+pub fn link(props: &LinkProps) -> Html {
+    let mut rel = classes!("noopener");
 
-impl Component for Link {
-    type Message = ();
-    type Properties = LinkProps;
-
-    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
-        Self { props }
+    if props.no_referrer {
+        rel.push("noreferrer");
     }
 
-    fn update(&mut self, _msg: Self::Message) -> ShouldRender {
-        false
+    if props.no_follow {
+        rel.push("nofollow");
     }
 
-    fn change(&mut self, props: Self::Properties) -> ShouldRender {
-        self.props.neq_assign(props)
-    }
-
-    fn view(&self) -> Html {
-        let mut rel = classes!("noopener");
-
-        if self.props.no_referrer {
-            rel.push("noreferrer");
-        }
-
-        if self.props.no_follow {
-            rel.push("nofollow");
-        }
-
-        html! {
-            <a
-                class=self.props.classes.clone()
-                href=self.props.href.clone()
-                target=self.props.new_tab.then(|| "_blank")
-                rel=rel
-            >
-                { self.props.text.clone() }
-                { self.props.children.clone() }
-            </a>
-        }
+    html! {
+        <a
+            class={props.classes.clone()}
+            href={props.href.clone()}
+            target={props.new_tab.then(|| "_blank")}
+            {rel}
+        >
+            { props.text.clone() }
+            { props.children.clone() }
+        </a>
     }
 }

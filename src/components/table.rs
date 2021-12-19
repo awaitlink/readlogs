@@ -1,5 +1,4 @@
 use yew::prelude::*;
-use yewtil::NeqAssign;
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct TableProps {
@@ -9,41 +8,20 @@ pub struct TableProps {
     pub children: Children,
 }
 
-#[derive(Debug)]
-pub struct Table {
-    props: TableProps,
-}
+#[function_component(Table)]
+pub fn table(props: &TableProps) -> Html {
+    let classes = classes!(
+        props.classes.clone(),
+        "max-w-max",
+        "!my-0",
+        "!leading-tight",
+    );
 
-impl Component for Table {
-    type Message = ();
-    type Properties = TableProps;
-
-    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
-        Self { props }
-    }
-
-    fn update(&mut self, _msg: Self::Message) -> ShouldRender {
-        false
-    }
-
-    fn change(&mut self, props: Self::Properties) -> ShouldRender {
-        self.props.neq_assign(props)
-    }
-
-    fn view(&self) -> Html {
-        let classes = classes!(
-            self.props.classes.clone(),
-            "max-w-max",
-            "!my-0",
-            "!leading-tight",
-        );
-
-        html! {
-            <div class="overflow-x-auto">
-                <table class=classes>
-                    { self.props.children.clone() }
-                </table>
-            </div>
-        }
+    html! {
+        <div class="overflow-x-auto">
+            <table class={classes}>
+                { props.children.clone() }
+            </table>
+        </div>
     }
 }

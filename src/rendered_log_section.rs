@@ -76,12 +76,12 @@ impl RenderedLogSection {
 
         html! {
             <Title
-                level=level
-                text=self.title.clone()
-                meta=format!("{}/{}", self.total_displayed_count(), self.total_total_count())
-                id=id
-                raw=raw
-                capitalize=!raw
+                {level}
+                text={self.title.clone()}
+                meta={format!("{}/{}", self.total_displayed_count(), self.total_total_count())}
+                {id}
+                {raw}
+                capitalize={!raw}
             />
         }
     }
@@ -91,8 +91,8 @@ impl RenderedLogSection {
             <ul>
                 <li>
                     <Link
-                        href=String::from("#") + &self.title_id()
-                        new_tab=false
+                        href={String::from("#") + &self.title_id()}
+                        new_tab={false}
                     >
                         { self.title(TitleLevel::H4, None) }
                     </Link>

@@ -1,6 +1,5 @@
 use derive_more::Display;
 use yew::prelude::*;
-use yewtil::NeqAssign;
 
 use crate::components::Badge;
 
@@ -45,51 +44,30 @@ pub struct TitleProps {
     pub capitalize: bool,
 }
 
-#[derive(Debug)]
-pub struct Title {
-    props: TitleProps,
-}
-
-impl Component for Title {
-    type Message = ();
-    type Properties = TitleProps;
-
-    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
-        Self { props }
-    }
-
-    fn update(&mut self, _msg: Self::Message) -> ShouldRender {
-        false
-    }
-
-    fn change(&mut self, props: Self::Properties) -> ShouldRender {
-        self.props.neq_assign(props)
-    }
-
-    fn view(&self) -> Html {
-        let text = if self.props.raw {
-            html! {
-                <code>{ self.props.text.clone() }</code>
-            }
-        } else if self.props.capitalize {
-            html! {
-                <span class="capitalize">{ self.props.text.to_lowercase().clone() }</span>
-            }
-        } else {
-            html! { self.props.text.clone() }
-        };
-
-        let meta = match &self.props.meta {
-            Some(meta) => html! {
-                <Badge classes=classes!("bg-brand-bg-message", "dark:bg-brand-dark-bg-message", "ml-2") text=meta.clone() />
-            },
-            None => html! {},
-        };
-
+#[function_component(Title)]
+pub fn title(props: &TitleProps) -> Html {
+    let text = if props.raw {
         html! {
-            <@{self.props.level.to_string()} class=self.props.classes.clone() id=self.props.id.clone()>
-                { text }{ meta }
-            </@>
+            <code>{ props.text.clone() }</code>
         }
+    } else if props.capitalize {
+        html! {
+            <span class="capitalize">{ props.text.to_lowercase().clone() }</span>
+        }
+    } else {
+        html! { props.text.clone() }
+    };
+
+    let meta = match &props.meta {
+        Some(meta) => html! {
+            <Badge classes={classes!("bg-brand-bg-message", "dark:bg-brand-dark-bg-message", "ml-2")} text={meta.clone()} />
+        },
+        None => html! {},
+    };
+
+    html! {
+        <@{props.level.to_string()} class={props.classes.clone()} id={props.id.clone()}>
+            { text }{ meta }
+        </@>
     }
 }

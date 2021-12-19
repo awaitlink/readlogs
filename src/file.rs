@@ -39,11 +39,11 @@ impl File {
     pub fn view(&self, tab: Tab, query: &SearchQuery) -> Html {
         let title = match tab {
             Tab::Information => html! {
-                <Title level=TitleLevel::H1 text=format!("{} ({})", tab, self.remote_object.platform())/>
+                <Title level={TitleLevel::H1} text={format!("{} ({})", tab, self.remote_object.platform())}/>
             },
             Tab::Logs => html! {},
             Tab::Raw => html! {
-                <Title level=TitleLevel::H1 text=tab.to_string()/>
+                <Title level={TitleLevel::H1} text={tab.to_string()}/>
             },
         };
 
@@ -62,12 +62,12 @@ impl File {
             Tab::Raw => html! {
                 <>
                     <DownloadButton
-                        classes=classes!("rounded-2xl")
-                        size=ButtonSize::Medium
-                        icon=classes!("fas", "fa-download")
-                        text="Download".to_owned()
-                        content=self.text.clone()
-                        filename=format!(
+                        classes={classes!("rounded-2xl")}
+                        size={ButtonSize::Medium}
+                        icon={classes!("fas", "fa-download")}
+                        text={"Download".to_owned()}
+                        content={self.text.clone()}
+                        filename={format!(
                             "{}-{}{}.txt",
                             self.remote_object.platform(),
                             self.remote_object.key(),
@@ -78,10 +78,10 @@ impl File {
                                     name.file_time.format("%F-%H-%M-%S-%3f-%Z")
                                 ))
                                 .unwrap_or_else(|| "".to_owned())
-                        ).to_lowercase()
+                        ).to_lowercase()}
                     />
 
-                    <CodeBlock text=self.text.clone()/>
+                    <CodeBlock text={self.text.clone()}/>
                 </>
             },
         };

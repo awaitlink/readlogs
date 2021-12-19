@@ -110,7 +110,7 @@ impl Content {
             };
 
             html! {
-                <Message text=text.to_owned() />
+                <Message text={text.to_owned()} />
             }
         } else {
             html! { for self.information.iter().map(|section| section.view(TitleLevel::H2)) }
@@ -132,7 +132,7 @@ impl Section<InfoEntry> {
         // TODO: Assumes that all entries in the section are the same variant.
         let wrapper = match self.content.first() {
             Some(InfoEntry::KeyValue(_, _)) | Some(InfoEntry::KeyEnabledValue(_, _, _)) => html! {
-                <Table classes=classes!("font-mono", "text-sm")>
+                <Table classes={classes!("font-mono", "text-sm")}>
                     <tbody>
                         { content }
                     </tbody>
@@ -163,7 +163,7 @@ impl Section<InfoEntry> {
 
         html! {
             <>
-                <Title level=level text=self.name.clone() raw=raw capitalize=!raw />
+                <Title {level} text={self.name.clone()} {raw} capitalize={!raw} />
                 { full_content }
             </>
         }
@@ -202,10 +202,10 @@ impl InfoEntry {
             },
             InfoEntry::RemoteObject(ro) => html! {
                 <Button
-                    size=ButtonSize::Medium
-                    icon=classes!("fas", "fa-download")
-                    text="debuglogs.org".to_owned()
-                    href=ro.debuglogs_url()
+                    size={ButtonSize::Medium}
+                    icon={classes!("fas", "fa-download")}
+                    text={"debuglogs.org".to_owned()}
+                    href={ro.debuglogs_url()}
                 />
             },
             InfoEntry::ExplicitNone => html! { <p>{ "None" }</p> },
@@ -248,7 +248,7 @@ impl Value {
                 <Table>
                     <thead>
                         <TableRow>
-                            <TableItem tag="th" classes=classes!("!border-r")>{ "Country code" }</TableItem>
+                            <TableItem tag="th" classes={classes!("!border-r")}>{ "Country code" }</TableItem>
                             {
                                 for buckets.iter().map(|bucket| html! {
                                     <TableItem>{ bucket.country_code.clone() }</TableItem>
@@ -258,7 +258,7 @@ impl Value {
                     </thead>
                     <tbody>
                         <TableRow>
-                            <TableItem tag="th" classes=classes!("!border-r")>{ "Value" }</TableItem>
+                            <TableItem tag="th" classes={classes!("!border-r")}>{ "Value" }</TableItem>
                             {
                                 for buckets.iter().map(|bucket| html! {
                                     <TableItem>{ bucket.value.clone() }</TableItem>
@@ -292,37 +292,37 @@ impl Section<LogEntry> {
             html! {
                 <Table>
                     <thead>
-                        <TableRow classes=classes!("text-left")>
-                            <TableItem tag="th" classes=classes!("min-w-[235px]")>{ "Timestamp" }</TableItem>
+                        <TableRow classes={classes!("text-left")}>
+                            <TableItem tag={"th"} classes={classes!("min-w-[235px]")}>{ "Timestamp" }</TableItem>
 
                             {
                                 match &self.content.get(0).unwrap().meta { // TODO: assumption?
                                     PlatformMetadata::AndroidLogcat { .. } => html! {
                                         <>
-                                            <TableItem tag="th">{ "Process" }</TableItem>
-                                            <TableItem tag="th">{ "Thread" }</TableItem>
-                                            <TableItem tag="th">{ "Tag" }</TableItem>
+                                            <TableItem tag={"th"}>{ "Process" }</TableItem>
+                                            <TableItem tag={"th"}>{ "Thread" }</TableItem>
+                                            <TableItem tag={"th"}>{ "Tag" }</TableItem>
                                         </>
                                     },
                                     PlatformMetadata::AndroidLogger { .. } => html! {
                                         <>
-                                            <TableItem tag="th">{ "Version" }</TableItem>
-                                            <TableItem tag="th">{ "Thread" }</TableItem>
-                                            <TableItem tag="th">{ "Tag" }</TableItem>
+                                            <TableItem tag={"th"}>{ "Version" }</TableItem>
+                                            <TableItem tag={"th"}>{ "Thread" }</TableItem>
+                                            <TableItem tag={"th"}>{ "Tag" }</TableItem>
                                         </>
                                     },
                                     PlatformMetadata::Ios(_) => html! {
                                         <>
-                                            <TableItem tag="th">{ "File" }</TableItem>
-                                            <TableItem tag="th">{ "Line" }</TableItem>
-                                            <TableItem tag="th">{ "Symbol" }</TableItem>
+                                            <TableItem tag={"th"}>{ "File" }</TableItem>
+                                            <TableItem tag={"th"}>{ "Line" }</TableItem>
+                                            <TableItem tag={"th"}>{ "Symbol" }</TableItem>
                                         </>
                                     },
                                     PlatformMetadata::Desktop => html! {},
                                 }
                             }
 
-                            <TableItem tag="th">{ "Message" }</TableItem>
+                            <TableItem tag={"th"}>{ "Message" }</TableItem>
                         </TableRow>
                     </thead>
                     <tbody class="font-mono">
@@ -354,7 +354,7 @@ impl Section<LogEntry> {
 impl LogEntry {
     pub fn view(&self) -> Html {
         html! {
-            <TableRow classes=self.level.unwrap_or_default().color()>
+            <TableRow classes={self.level.unwrap_or_default().color()}>
                 <TableItem>{ self.timestamp.to_string() }</TableItem>
                 { self.meta.clone().view() }
                 <TableItem><pre>{ self.message.to_owned() }</pre></TableItem>
@@ -413,7 +413,7 @@ impl PlatformMetadata {
                 <>
                     <TableItem>{ meta.file }</TableItem>
                     <TableItem>{ meta.line }</TableItem>
-                    <TableItem classes=classes!("text-right")><pre>{ meta.symbol }</pre></TableItem>
+                    <TableItem classes={classes!("text-right")}><pre>{ meta.symbol }</pre></TableItem>
                 </>
             },
             PlatformMetadata::Ios(None) => html! {

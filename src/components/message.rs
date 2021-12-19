@@ -1,5 +1,4 @@
 use yew::prelude::*;
-use yewtil::NeqAssign;
 
 use crate::components::{Title, TitleLevel};
 
@@ -19,75 +18,54 @@ pub struct MessageProps {
     pub error: bool,
 }
 
-#[derive(Debug)]
-pub struct Message {
-    props: MessageProps,
-}
+#[function_component(Message)]
+pub fn message(props: &MessageProps) -> Html {
+    let mut classes = classes!(
+        props.classes.clone(),
+        "p-4",
+        "rounded-2xl",
+        "border-brand-border",
+        "dark:border-brand-dark-border",
+        "prose",
+        "dark:prose-invert",
+        "prose-sm",
+        "max-w-max",
+        "mx-auto",
+    );
 
-impl Component for Message {
-    type Message = ();
-    type Properties = MessageProps;
+    classes.push(if props.error {
+        classes!("bg-red-100")
+    } else {
+        classes!("bg-brand-bg-message", "dark:bg-brand-dark-bg-message")
+    });
 
-    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
-        Self { props }
-    }
+    let heading = match &props.heading {
+        Some(heading) => {
+            let heading_classes = if props.error {
+                classes!("!text-red-600")
+            } else {
+                classes!()
+            };
 
-    fn update(&mut self, _msg: Self::Message) -> ShouldRender {
-        false
-    }
-
-    fn change(&mut self, props: Self::Properties) -> ShouldRender {
-        self.props.neq_assign(props)
-    }
-
-    fn view(&self) -> Html {
-        let mut classes = classes!(
-            self.props.classes.clone(),
-            "p-4",
-            "rounded-2xl",
-            "border-brand-border",
-            "dark:border-brand-dark-border",
-            "prose",
-            "dark:prose-invert",
-            "prose-sm",
-            "max-w-max",
-            "mx-auto",
-        );
-
-        classes.push(if self.props.error {
-            classes!("bg-red-100")
-        } else {
-            classes!("bg-brand-bg-message", "dark:bg-brand-dark-bg-message")
-        });
-
-        let heading = match &self.props.heading {
-            Some(heading) => {
-                let heading_classes = if self.props.error {
-                    classes!("!text-red-600")
-                } else {
-                    classes!()
-                };
-
-                html! {
-                    <Title level=TitleLevel::H2 classes=heading_classes text=heading.clone() />
-                }
+            html! {
+                <Title level={TitleLevel::H2} classes={heading_classes} text={heading.clone()} />
             }
-            None => html! {},
-        };
-
-        let text = match &self.props.text {
-            Some(text) => html! {
-                <p>{ text.clone() }</p>
-            },
-            None => html! {},
-        };
-
-        html! {
-            <div class=classes>
-                { heading }
-                { text }
-                { self.props.children.clone() }
-            </div>
         }
+        None => html! {},
+    };
+
+    let text = match &props.text {
+        Some(text) => html! {
+            <p>{ text.clone() }</p>
+        },
+        None => html! {},
+    };
+
+    html! {
+        <div class={classes}>
+            { heading }
+            { text }
+            { props.children.clone() }
+        </div>
     }
 }

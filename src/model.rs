@@ -4,10 +4,11 @@ use std::{
     rc::Rc,
 };
 
-use anyhow::{ensure, Context};
+use anyhow::{anyhow, ensure, Context};
 use derive_more::{Display, IsVariant};
 use strum_macros::EnumIter;
-use yew::{prelude::*, services::fetch::FetchTask, web_sys::HtmlInputElement};
+use web_sys::HtmlInputElement;
+use yew::prelude::*;
 use yewtil::NeqAssign;
 use zip::ZipArchive;
 
@@ -20,8 +21,9 @@ use crate::{
 pub enum Msg {
     UpdateUrl(String),
     Start,
-    FinishedFetchText(anyhow::Result<String>),
-    FinishedFetchBinary(anyhow::Result<Vec<u8>>),
+    FetchError(anyhow::Error),
+    FinishedFetchText(String),
+    FinishedFetchBinary(Vec<u8>),
     UpdateActiveFile(Rc<LogFilename>),
     UpdateTab(Tab),
     UpdateMinLogLevel(String),
@@ -43,7 +45,7 @@ pub enum Object {
 pub enum State {
     NoData,
     Error(anyhow::Error),
-    Fetching(FetchTask),
+    Fetching,
     Ready(Object),
 }
 
@@ -52,7 +54,7 @@ impl PartialEq for State {
         match (self, other) {
             (State::NoData, State::NoData) => true,
             (State::Error(_), State::Error(_)) => false,
-            (State::Fetching(_), State::Fetching(_)) => false,
+            (State::Fetching, State::Fetching) => true,
             (State::Ready(a), State::Ready(b)) => a == b,
             _ => false,
         }
@@ -105,7 +107,6 @@ impl Tab {
 
 #[derive(Debug)]
 pub struct Model {
-    pub link: ComponentLink<Self>,
     pub state: State,
     pub debug_log_input: NodeRef,
     pub debug_log_url: String,
@@ -120,9 +121,8 @@ impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
+    fn create(_ctx: &yew::prelude::Context<Self>) -> Self {
         Self {
-            link,
             state: Default::default(),
             debug_log_input: NodeRef::default(),
             debug_log_url: Default::default(),
@@ -134,25 +134,45 @@ impl Component for Model {
         }
     }
 
-    fn update(&mut self, msg: Self::Message) -> ShouldRender {
-        match self.update_inner(msg) {
+    fn update(&mut self, ctx: &yew::prelude::Context<Self>, msg: Self::Message) -> bool {
+        match self.update_inner(ctx, msg) {
             Ok(should_render) => should_render,
             Err(e) => self.state.neq_assign(State::Error(e)),
         }
     }
 
-    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
-        false
-    }
-
-    fn view(&self) -> Html {
-        self.view_inner()
+    fn view(&self, ctx: &yew::prelude::Context<Self>) -> Html {
+        self.view_inner(ctx)
     }
 }
 
 impl Model {
-    fetch_fn!(fetch, FinishedFetchText(String));
-    fetch_fn!(fetch_binary, FinishedFetchBinary(Vec<u8>));
+    fn fetch(&self, ctx: &yew::prelude::Context<Self>, url: &str, binary: bool) {
+        let request = reqwasm::http::Request::get(url);
+
+        ctx.link().send_future(async move {
+            match request.send().await {
+                Ok(response) => match response.status() {
+                    200 => {
+                        if binary {
+                            let bytes = response.binary().await.unwrap();
+                            Msg::FinishedFetchBinary(bytes)
+                        } else {
+                            let text = response.text().await.unwrap();
+                            Msg::FinishedFetchText(text)
+                        }
+                    }
+                    _ => Msg::FetchError(
+                        anyhow!("status code {}", response.status())
+                            .context("fetching debug log finished unsuccessfully"),
+                    ),
+                },
+                Err(e) => Msg::FetchError(
+                    anyhow::Error::from(e).context("couldn't start fetching debug log"),
+                ),
+            }
+        })
+    }
 
     pub(super) fn active_file(&self) -> &File {
         match &self.state {
@@ -165,7 +185,11 @@ impl Model {
         }
     }
 
-    fn update_inner(&mut self, msg: <Self as Component>::Message) -> anyhow::Result<ShouldRender> {
+    fn update_inner(
+        &mut self,
+        ctx: &yew::prelude::Context<Self>,
+        msg: <Self as Component>::Message,
+    ) -> anyhow::Result<bool> {
         match msg {
             Msg::UpdateUrl(value) => Ok(self.debug_log_url.neq_assign(value)),
             Msg::Start => match &self.state {
@@ -185,30 +209,27 @@ impl Model {
                         .parse::<RemoteObject>()
                         .context("failed to parse the debug log URL")?;
 
-                    let new_state = State::Fetching(
-                        match reference.platform() {
-                            Platform::Ios => Self::fetch_binary,
-                            _ => Self::fetch,
-                        }(self, &reference.fetchable_url())
-                        .context("failed to start fetching debug log")?,
+                    self.fetch(
+                        ctx,
+                        &reference.fetchable_url(),
+                        matches!(reference.platform(), Platform::Ios),
                     );
 
                     self.debug_log_url = reference.debuglogs_url();
                     self.remote_object = Some(reference);
 
-                    Ok(self.state.neq_assign(new_state))
+                    Ok(self.state.neq_assign(State::Fetching))
                 }
                 _ => Ok(false),
             },
-            Msg::FinishedFetchText(data) => {
-                let text = data.context("fetching debug log finished unsuccessfully")?;
+            Msg::FetchError(e) => Err(e),
+            Msg::FinishedFetchText(text) => {
                 let file = File::from_text(self.remote_object.clone().unwrap(), None, text)?;
 
                 Ok(self.state.neq_assign(State::Ready(Object::Single(file))))
             }
-            Msg::FinishedFetchBinary(data) => {
-                let data = data.context("fetching debug log finished unsuccessfully")?;
-                let mut zip = ZipArchive::new(Cursor::new(data.as_slice()))
+            Msg::FinishedFetchBinary(bytes) => {
+                let mut zip = ZipArchive::new(Cursor::new(bytes.as_slice()))
                     .context("couldn't read the debug log file as a `zip`")?;
 
                 let mut files = BTreeMap::new();

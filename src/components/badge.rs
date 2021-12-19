@@ -1,5 +1,4 @@
 use yew::prelude::*;
-use yewtil::NeqAssign;
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct BadgeProps {
@@ -12,35 +11,14 @@ pub struct BadgeProps {
     pub text: String,
 }
 
-#[derive(Debug)]
-pub struct Badge {
-    props: BadgeProps,
-}
+#[function_component(Badge)]
+pub fn badge(props: &BadgeProps) -> Html {
+    let classes = classes!(props.classes.clone(), "rounded-2xl", "px-4", "py-1",);
 
-impl Component for Badge {
-    type Message = ();
-    type Properties = BadgeProps;
-
-    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
-        Self { props }
-    }
-
-    fn update(&mut self, _msg: Self::Message) -> ShouldRender {
-        false
-    }
-
-    fn change(&mut self, props: Self::Properties) -> ShouldRender {
-        self.props.neq_assign(props)
-    }
-
-    fn view(&self) -> Html {
-        let classes = classes!(self.props.classes.clone(), "rounded-2xl", "px-4", "py-1",);
-
-        html! {
-            <span class=classes>
-                { self.props.text.clone() }
-                { self.props.children.clone() }
-            </span>
-        }
+    html! {
+        <span class={classes}>
+            { props.text.clone() }
+            { props.children.clone() }
+        </span>
     }
 }

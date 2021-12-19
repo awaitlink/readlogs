@@ -1,5 +1,4 @@
 use yew::prelude::*;
-use yewtil::NeqAssign;
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct ToolbarProps {
@@ -13,57 +12,36 @@ pub struct ToolbarProps {
     pub children: Children,
 }
 
-#[derive(Debug)]
-pub struct Toolbar {
-    props: ToolbarProps,
-}
+#[function_component(Toolbar)]
+pub fn toolbar(props: &ToolbarProps) -> Html {
+    let outer = classes!(props.classes_outer.clone(), "w-full", "z-20");
 
-impl Component for Toolbar {
-    type Message = ();
-    type Properties = ToolbarProps;
+    let mid = classes!(
+        props.classes_mid.clone(),
+        "p-2",
+        "bg-brand-bg",
+        "dark:bg-brand-dark-bg",
+        "bg-opacity-50",
+        "dark:bg-opacity-50",
+        "backdrop-blur",
+        "mx-auto",
+        "max-w-prose",
+    );
 
-    fn create(props: Self::Properties, _link: ComponentLink<Self>) -> Self {
-        Self { props }
-    }
+    let inner = classes!(
+        props.classes_inner.clone(),
+        "mx-auto",
+        "flex",
+        "w-[calc(100%-0.25rem)]",
+    );
 
-    fn update(&mut self, _msg: Self::Message) -> ShouldRender {
-        false
-    }
-
-    fn change(&mut self, props: Self::Properties) -> ShouldRender {
-        self.props.neq_assign(props)
-    }
-
-    fn view(&self) -> Html {
-        let outer = classes!(self.props.classes_outer.clone(), "w-full", "z-20");
-
-        let mid = classes!(
-            self.props.classes_mid.clone(),
-            "p-2",
-            "bg-brand-bg",
-            "dark:bg-brand-dark-bg",
-            "bg-opacity-50",
-            "dark:bg-opacity-50",
-            "backdrop-blur",
-            "mx-auto",
-            "max-w-prose",
-        );
-
-        let inner = classes!(
-            self.props.classes_inner.clone(),
-            "mx-auto",
-            "flex",
-            "w-[calc(100%-0.25rem)]",
-        );
-
-        html! {
-            <nav class=outer>
-                <div class=mid>
-                    <div class=inner>
-                        { self.props.children.clone() }
-                    </div>
+    html! {
+        <nav class={outer}>
+            <div class={mid}>
+                <div class={inner}>
+                    { props.children.clone() }
                 </div>
-            </nav>
-        }
+            </div>
+        </nav>
     }
 }

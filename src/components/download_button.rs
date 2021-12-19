@@ -2,8 +2,8 @@ use std::convert::identity;
 
 use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
 use wasm_bindgen::JsCast;
-use yew::{prelude::*, utils::document, web_sys::HtmlElement};
-use yewtil::NeqAssign;
+use web_sys::{window, HtmlElement};
+use yew::prelude::*;
 
 use crate::components::{Button, ButtonSize};
 
@@ -30,57 +30,52 @@ pub struct DownloadButtonProps {
 }
 
 #[derive(Debug)]
-pub struct DownloadButton {
-    link: ComponentLink<Self>,
-    props: DownloadButtonProps,
-}
+pub struct DownloadButton;
 
 impl Component for DownloadButton {
     type Message = MouseEvent;
     type Properties = DownloadButtonProps;
 
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        Self { link, props }
+    fn create(_ctx: &Context<Self>) -> Self {
+        Self
     }
 
-    fn update(&mut self, _msg: Self::Message) -> ShouldRender {
-        let element = document().create_element("a").unwrap();
+    fn update(&mut self, ctx: &Context<Self>, _msg: Self::Message) -> bool {
+        let document = window().unwrap().document().unwrap();
+
+        let element = document.create_element("a").unwrap();
         element
             .set_attribute(
                 "href",
                 &format!(
                     "data:text/plain;charset=utf-8,{}",
-                    percent_encode(self.props.content.as_bytes(), NON_ALPHANUMERIC)
+                    percent_encode(ctx.props().content.as_bytes(), NON_ALPHANUMERIC)
                 ),
             )
             .unwrap();
         element
-            .set_attribute("download", &self.props.filename)
+            .set_attribute("download", &ctx.props().filename)
             .unwrap();
         element.set_attribute("style", "display:none;").unwrap();
 
-        document().body().unwrap().append_child(&element).unwrap();
+        document.body().unwrap().append_child(&element).unwrap();
         let element = element.dyn_into::<HtmlElement>().unwrap();
         element.click();
-        document().body().unwrap().remove_child(&element).unwrap();
+        document.body().unwrap().remove_child(&element).unwrap();
 
         false
     }
 
-    fn change(&mut self, props: Self::Properties) -> ShouldRender {
-        self.props.neq_assign(props)
-    }
-
-    fn view(&self) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
             <Button
-                classes=self.props.classes.clone()
-                size=self.props.size
-                icon=self.props.icon.clone()
-                text=self.props.text.clone()
-                active=self.props.active
-                disabled=self.props.disabled
-                on_click=self.link.callback(identity)
+                classes={ctx.props().classes.clone()}
+                size={ctx.props().size}
+                icon={ctx.props().icon.clone()}
+                text={ctx.props().text.clone()}
+                active={ctx.props().active}
+                disabled={ctx.props().disabled}
+                on_click={ctx.link().callback(identity)}
             />
         }
     }

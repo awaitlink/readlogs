@@ -1,20 +1,22 @@
 use strum::IntoEnumIterator;
+use wasm_bindgen::JsCast;
+use web_sys::{Event, HtmlSelectElement};
 use yew::prelude::*;
 
 use crate::{components::*, *};
 
 impl super::Model {
-    pub fn view_inner(&self) -> Html {
+    pub fn view_inner(&self, ctx: &Context<Self>) -> Html {
         let file_picker = match &self.state {
             State::Ready(Object::Multiple {
                 files,
                 active_filename,
             }) => html! {
                 <FilePicker
-                    classes=classes!("mb-8")
-                    files=files.keys().cloned().collect::<Vec<_>>()
-                    selected_file=active_filename
-                    on_file_selected=self.link.callback(Msg::UpdateActiveFile)
+                    classes={classes!("mb-8")}
+                    files={files.keys().cloned().collect::<Vec<_>>()}
+                    selected_file={active_filename}
+                    on_file_selected={ctx.link().callback(Msg::UpdateActiveFile)}
                 />
             },
             _ => html! {},
@@ -38,10 +40,10 @@ impl super::Model {
 
         html! {
             <>
-                <div class=wrapper_classes>
+                <div class={wrapper_classes}>
                     <div class="mx-4">
-                        { self.view_main_input() }
-                        { self.view_help() }
+                        { self.view_main_input(ctx) }
+                        { self.view_help(ctx) }
 
                         { file_picker }
                     </div>
@@ -53,106 +55,106 @@ impl super::Model {
 
                 { self.view_footer() }
 
-                { self.view_display_config() }
+                { self.view_display_config(ctx) }
             </>
         }
     }
 
-    pub fn view_main_input(&self) -> Html {
+    pub fn view_main_input(&self, ctx: &Context<Self>) -> Html {
         html! {
             <div class="flex mb-8">
                 <Input
-                    ref=self.debug_log_input.clone()
-                    classes=classes!("rounded-l-2xl")
-                    value=self.debug_log_url.clone()
-                    on_change=self.link.callback(Msg::UpdateUrl)
-                    on_submit=self.link.callback(|_| Msg::Start)
+                    ref={self.debug_log_input.clone()}
+                    classes={classes!("rounded-l-2xl")}
+                    value={self.debug_log_url.clone()}
+                    on_change={ctx.link().callback(Msg::UpdateUrl)}
+                    on_submit_maybe={ctx.link().batch_callback(|actually: bool| actually.then(|| Msg::Start))}
                     placeholder="https://debuglogs.org/..."
-                    disabled=self.state.is_fetching()
-                    autofocus=true
+                    disabled={self.state.is_fetching()}
+                    autofocus={true}
                 />
 
-                { self.view_submit_button(ButtonSize::Large) }
+                { self.view_submit_button(ButtonSize::Large, ctx) }
             </div>
         }
     }
 
-    pub fn view_help(&self) -> Html {
+    pub fn view_help(&self, ctx: &Context<Self>) -> Html {
         match &self.state {
             State::NoData => html! {
                 <Message>
                     { "Please enter a Signal " }
                     <Link href="https://support.signal.org/hc/en-us/articles/360007318591" text="debug log"/>
                     {" URL and press " }
-                    <span>{ self.view_submit_button(ButtonSize::Small) }</span>
+                    <span>{ self.view_submit_button(ButtonSize::Small, ctx) }</span>
                     { " or " }
-                    <Badge classes=classes!("bg-brand-bg", "dark:bg-brand-dark-bg") text="Enter ⏎" />
+                    <Badge classes={classes!("bg-brand-bg", "dark:bg-brand-dark-bg")} text="Enter ⏎" />
                     { "." }
                 </Message>
             },
-            State::Fetching(_) => html! {
+            State::Fetching => html! {
                 <Message
-                    heading="Progress".to_owned()
-                    text="Fetching and parsing...".to_owned()
-                    classes=classes!("animate-pulse")
+                    heading={"Progress".to_owned()}
+                    text={"Fetching and parsing...".to_owned()}
+                    classes={classes!("animate-pulse")}
                 />
             },
             State::Error(e) => html! {
-                <Message error=true heading="Error".to_owned()>
-                    <CodeBlock text=format!("Error: {:?}", e)/>
+                <Message error={true} heading={"Error".to_owned()}>
+                    <CodeBlock text={format!("Error: {:?}", e)}/>
                 </Message>
             },
             _ => html! {},
         }
     }
 
-    pub fn view_submit_button(&self, size: ButtonSize) -> Html {
+    pub fn view_submit_button(&self, size: ButtonSize, ctx: &Context<Self>) -> Html {
         html! {
             <Button
-                size=size
-                on_click=self.link.callback(|_| Msg::Start)
-                disabled=self.state.is_fetching()
-                text="Read".to_owned()
+                {size}
+                on_click={ctx.link().callback(|_| Msg::Start)}
+                disabled={self.state.is_fetching()}
+                text={"Read".to_owned()}
             />
         }
     }
 
-    pub fn view_display_config(&self) -> Html {
+    pub fn view_display_config(&self, ctx: &Context<Self>) -> Html {
         if !self.state.is_ready() {
             return html! {};
         }
 
         html! {
             <Toolbar
-                classes_outer=classes!("fixed", "bottom-0")
-                classes_mid=classes!("rounded-t-2xl")
+                classes_outer={classes!("fixed", "bottom-0")}
+                classes_mid={classes!("rounded-t-2xl")}
             >
                 <div class="flex flex-col gap-y-2 grow">
-                    { self.view_search_toolbar_row() }
+                    { self.view_search_toolbar_row(ctx) }
 
                     <div class="flex grow">
                         <div class="flex grow">
-                            { for Tab::iter().map(|tab| self.view_tab_button(tab)) }
+                            { for Tab::iter().map(|tab| self.view_tab_button(tab, ctx)) }
                         </div>
 
                         <div>
                             <Button
-                                classes=classes!(
+                                classes={classes!(
                                     "hidden",
                                     "lg:block",
                                     "ml-2",
-                                )
-                                on_click=self.link.callback(|_| Msg::UpdateUiExpanded)
-                                icon=classes!("fas", if self.ui_expanded {
+                                )}
+                                on_click={ctx.link().callback(|_| Msg::UpdateUiExpanded)}
+                                icon={classes!("fas", if self.ui_expanded {
                                     "fa-compress-alt"
                                 } else {
                                     "fa-expand-alt"
-                                })
-                                text=if self.ui_expanded {
+                                })}
+                                text={if self.ui_expanded {
                                     "Collapse UI"
                                 } else {
                                     "Expand UI"
-                                }.to_owned()
+                                }.to_owned()}
                             />
                         </div>
                     </div>
@@ -161,7 +163,7 @@ impl super::Model {
         }
     }
 
-    pub fn view_search_toolbar_row(&self) -> Html {
+    pub fn view_search_toolbar_row(&self, ctx: &Context<Self>) -> Html {
         match (&self.state, &self.tab) {
             (State::Ready(_), Tab::Logs) => {
                 let min_log_level_classes = classes!(
@@ -186,12 +188,11 @@ impl super::Model {
                 html! {
                     <div class="flex grow">
                         <select
-                            value=self.pending_query.min_log_level.to_string()
-                            onchange=self.link.callback(|change: ChangeData| match change {
-                                ChangeData::Select(data) => Msg::UpdateMinLogLevel(data.value()),
-                                _ => unreachable!(),
-                            })
-                            class=min_log_level_classes
+                            value={self.pending_query.min_log_level.to_string()}
+                            onchange={ctx.link().callback(|event: Event|
+                                Msg::UpdateMinLogLevel(event.target().unwrap().dyn_into::<HtmlSelectElement>().unwrap().value())
+                            )}
+                            class={min_log_level_classes}
                         >
                             {
                                 for LogLevel::iter()
@@ -203,9 +204,9 @@ impl super::Model {
                         </select>
 
                         <Input
-                            value=self.pending_query.string.clone()
-                            on_change=self.link.callback(Msg::UpdateQuery)
-                            on_submit=self.link.callback(|_| Msg::ApplySearchQuery)
+                            value={self.pending_query.string.clone()}
+                            on_change={ctx.link().callback(Msg::UpdateQuery)}
+                            on_submit_maybe={ctx.link().batch_callback(|actually: bool| actually.then(|| Msg::ApplySearchQuery))}
                             placeholder={
                                 "Search ".to_owned()
                                     + &self.pending_query.min_log_level.to_string().to_lowercase()
@@ -214,13 +215,13 @@ impl super::Model {
                         />
 
                         <Button
-                            on_click=self.link.callback(|_| Msg::ApplySearchQuery)
-                            icon=classes!("fas", if self.pending_query == self.active_query {
+                            on_click={ctx.link().callback(|_| Msg::ApplySearchQuery)}
+                            icon={classes!("fas", if self.pending_query == self.active_query {
                                 "fa-check"
                             } else {
                                 "fa-search"
-                            })
-                            disabled=self.pending_query == self.active_query
+                            })}
+                            disabled={self.pending_query == self.active_query}
                         />
                     </div>
                 }
@@ -229,15 +230,15 @@ impl super::Model {
         }
     }
 
-    pub fn view_tab_button(&self, tab: Tab) -> Html {
+    pub fn view_tab_button(&self, tab: Tab, ctx: &Context<Self>) -> Html {
         html! {
             <Button
-                classes=classes!("grow")
-                size=ButtonSize::Medium
-                on_click=self.link.callback(move |_| Msg::UpdateTab(tab))
-                active=self.tab == tab
-                icon=tab.icon()
-                text=tab.to_string()
+                classes={classes!("grow")}
+                size={ButtonSize::Medium}
+                on_click={ctx.link().callback(move |_| Msg::UpdateTab(tab))}
+                active={self.tab == tab}
+                icon={tab.icon()}
+                text={tab.to_string()}
             />
         }
     }
@@ -247,7 +248,7 @@ impl super::Model {
             <footer class="bg-brand-bg-footer dark:bg-brand-dark-bg-footer mb-24 px-8 pb-12 pt-6 text-center">
                 <article class="prose dark:prose-invert prose-sm mx-auto">
                     <p>
-                        <Link href="https://github.com/u32i64/readlogs" text="Readlogs" no_referrer=false no_follow=false/>
+                        <Link href="https://github.com/u32i64/readlogs" text="Readlogs" no_referrer={false} no_follow={false}/>
                         { " is an unofficial project. It is not affilated with the Signal Technology Foundation or Signal Messenger, LLC." }
                     </p>
                     <p><code>{ env!("VERGEN_GIT_SHA_SHORT") }</code></p>
