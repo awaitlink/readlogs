@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use std::convert::identity;
 
 use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
@@ -26,7 +28,7 @@ pub struct DownloadButtonProps {
     pub disabled: bool,
 
     pub filename: String,
-    pub content: String,
+    pub content: Rc<String>,
 }
 
 #[derive(Debug)]

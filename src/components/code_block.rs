@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use yew::prelude::*;
 
 use crate::components::{Button, ButtonSize};
@@ -11,8 +13,8 @@ pub struct CodeBlockProps {
     #[prop_or_default]
     pub children: Children,
 
-    #[prop_or_default]
-    pub text: String,
+    #[prop_or_else(|| Rc::new(String::new()))]
+    pub text: Rc<String>,
 }
 
 #[function_component(CodeBlock)]
@@ -27,7 +29,7 @@ pub fn code_block(props: &CodeBlockProps) -> Html {
         "text-xs",
     );
 
-    let full_text = props.text.clone();
+    let full_text = Rc::clone(&props.text);
 
     let (text, footer) = if *expanded {
         (full_text, html! {})
@@ -71,7 +73,7 @@ pub fn code_block(props: &CodeBlockProps) -> Html {
             }
         };
 
-        (text, footer)
+        (Rc::new(text), footer)
     };
 
     html! {

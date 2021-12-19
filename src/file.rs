@@ -13,7 +13,7 @@ use crate::{
 pub struct File {
     remote_object: RemoteObject,
     name: Option<Rc<LogFilename>>,
-    text: String,
+    text: Rc<String>,
     parsed: Content,
 }
 
@@ -31,7 +31,7 @@ impl File {
         Ok(Self {
             remote_object,
             name,
-            text,
+            text: Rc::new(text),
             parsed,
         })
     }
@@ -66,7 +66,7 @@ impl File {
                         size={ButtonSize::Medium}
                         icon={classes!("fas", "fa-download")}
                         text="Download"
-                        content={self.text.clone()}
+                        content={Rc::clone(&self.text)}
                         filename={format!(
                             "{}-{}{}.txt",
                             self.remote_object.platform(),
@@ -81,7 +81,7 @@ impl File {
                         ).to_lowercase()}
                     />
 
-                    <CodeBlock text={self.text.clone()}/>
+                    <CodeBlock text={Rc::clone(&self.text)}/>
                 </>
             },
         };
