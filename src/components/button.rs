@@ -103,11 +103,11 @@ pub fn button(props: &ButtonProps) -> Html {
         (Some(icon), Some(text)) => html! {
             <>
                 <Icon icon={icon.clone()} classes={classes!("mr-2")} />
-                { text.clone() }
+                { text }
             </>
         },
         (Some(icon), None) => html! { <Icon icon={icon.clone()} /> },
-        (None, Some(text)) => html! { text.clone() },
+        (None, Some(text)) => html! { text },
         (None, None) => html! {},
     };
 

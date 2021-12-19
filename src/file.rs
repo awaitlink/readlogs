@@ -65,7 +65,7 @@ impl File {
                         classes={classes!("rounded-2xl")}
                         size={ButtonSize::Medium}
                         icon={classes!("fas", "fa-download")}
-                        text={"Download".to_owned()}
+                        text="Download"
                         content={self.text.clone()}
                         filename={format!(
                             "{}-{}{}.txt",

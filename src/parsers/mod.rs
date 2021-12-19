@@ -110,7 +110,7 @@ impl Content {
             };
 
             html! {
-                <Message text={text.to_owned()} />
+                <Message {text} />
             }
         } else {
             html! { for self.information.iter().map(|section| section.view(TitleLevel::H2)) }
@@ -175,13 +175,13 @@ impl InfoEntry {
         match self {
             InfoEntry::KeyValue(key, value) => html! {
                 <TableRow>
-                    <TableItem>{ key.clone() }</TableItem>
+                    <TableItem>{ key }</TableItem>
                     <TableItem>{ value.view() }</TableItem>
                 </TableRow>
             },
             InfoEntry::KeyEnabledValue(key, enabled, value) => html! {
                 <TableRow>
-                    <TableItem>{ key.clone() }</TableItem>
+                    <TableItem>{ key }</TableItem>
                     {
                         // TODO: Assumes that all KV pairs in section have `enabled`
                         //       (otherwise the table will be misaligned).
@@ -204,7 +204,7 @@ impl InfoEntry {
                 <Button
                     size={ButtonSize::Medium}
                     icon={classes!("fas", "fa-download")}
-                    text={"debuglogs.org".to_owned()}
+                    text="debuglogs.org"
                     href={ro.debuglogs_url()}
                 />
             },
@@ -215,7 +215,7 @@ impl InfoEntry {
                         <TableRow>
                             {
                                 for table.header.iter().map(|item| html! {
-                                    <TableItem>{ item.clone() }</TableItem>
+                                    <TableItem>{ item }</TableItem>
                                 })
                             }
                         </TableRow>
@@ -226,7 +226,7 @@ impl InfoEntry {
                                 <TableRow>
                                     {
                                         for row.iter().map(|item| html! {
-                                            <TableItem>{ item.clone() }</TableItem>
+                                            <TableItem>{ item }</TableItem>
                                         })
                                     }
                                 </TableRow>
@@ -251,7 +251,7 @@ impl Value {
                             <TableItem tag="th" classes={classes!("!border-r")}>{ "Country code" }</TableItem>
                             {
                                 for buckets.iter().map(|bucket| html! {
-                                    <TableItem>{ bucket.country_code.clone() }</TableItem>
+                                    <TableItem>{ &bucket.country_code }</TableItem>
                                 })
                             }
                         </TableRow>
@@ -261,7 +261,7 @@ impl Value {
                             <TableItem tag="th" classes={classes!("!border-r")}>{ "Value" }</TableItem>
                             {
                                 for buckets.iter().map(|bucket| html! {
-                                    <TableItem>{ bucket.value.clone() }</TableItem>
+                                    <TableItem>{ &bucket.value }</TableItem>
                                 })
                             }
                         </TableRow>
@@ -293,36 +293,36 @@ impl Section<LogEntry> {
                 <Table>
                     <thead>
                         <TableRow classes={classes!("text-left")}>
-                            <TableItem tag={"th"} classes={classes!("min-w-[235px]")}>{ "Timestamp" }</TableItem>
+                            <TableItem tag="th" classes={classes!("min-w-[235px]")}>{ "Timestamp" }</TableItem>
 
                             {
                                 match &self.content.get(0).unwrap().meta { // TODO: assumption?
                                     PlatformMetadata::AndroidLogcat { .. } => html! {
                                         <>
-                                            <TableItem tag={"th"}>{ "Process" }</TableItem>
-                                            <TableItem tag={"th"}>{ "Thread" }</TableItem>
-                                            <TableItem tag={"th"}>{ "Tag" }</TableItem>
+                                            <TableItem tag="th">{ "Process" }</TableItem>
+                                            <TableItem tag="th">{ "Thread" }</TableItem>
+                                            <TableItem tag="th">{ "Tag" }</TableItem>
                                         </>
                                     },
                                     PlatformMetadata::AndroidLogger { .. } => html! {
                                         <>
-                                            <TableItem tag={"th"}>{ "Version" }</TableItem>
-                                            <TableItem tag={"th"}>{ "Thread" }</TableItem>
-                                            <TableItem tag={"th"}>{ "Tag" }</TableItem>
+                                            <TableItem tag="th">{ "Version" }</TableItem>
+                                            <TableItem tag="th">{ "Thread" }</TableItem>
+                                            <TableItem tag="th">{ "Tag" }</TableItem>
                                         </>
                                     },
                                     PlatformMetadata::Ios(_) => html! {
                                         <>
-                                            <TableItem tag={"th"}>{ "File" }</TableItem>
-                                            <TableItem tag={"th"}>{ "Line" }</TableItem>
-                                            <TableItem tag={"th"}>{ "Symbol" }</TableItem>
+                                            <TableItem tag="th">{ "File" }</TableItem>
+                                            <TableItem tag="th">{ "Line" }</TableItem>
+                                            <TableItem tag="th">{ "Symbol" }</TableItem>
                                         </>
                                     },
                                     PlatformMetadata::Desktop => html! {},
                                 }
                             }
 
-                            <TableItem tag={"th"}>{ "Message" }</TableItem>
+                            <TableItem tag="th">{ "Message" }</TableItem>
                         </TableRow>
                     </thead>
                     <tbody class="font-mono">

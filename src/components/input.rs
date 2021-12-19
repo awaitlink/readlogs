@@ -50,7 +50,7 @@ pub fn input(props: &InputProps) -> Html {
 
     html! {
         <input
-            type={"text"}
+            type="text"
             value={props.value.clone()}
             oninput={props.on_change.clone().reform(|event: InputEvent| event.target().unwrap().dyn_into::<HtmlInputElement>().unwrap().value())}
             class={classes}

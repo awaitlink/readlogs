@@ -56,7 +56,7 @@ pub fn message(props: &MessageProps) -> Html {
 
     let text = match &props.text {
         Some(text) => html! {
-            <p>{ text.clone() }</p>
+            <p>{ text }</p>
         },
         None => html! {},
     };

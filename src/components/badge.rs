@@ -17,7 +17,7 @@ pub fn badge(props: &BadgeProps) -> Html {
 
     html! {
         <span class={classes}>
-            { props.text.clone() }
+            { &props.text }
             { props.children.clone() }
         </span>
     }

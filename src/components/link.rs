@@ -40,7 +40,7 @@ pub fn link(props: &LinkProps) -> Html {
             target={props.new_tab.then(|| "_blank")}
             {rel}
         >
-            { props.text.clone() }
+            { &props.text }
             { props.children.clone() }
         </a>
     }

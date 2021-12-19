@@ -62,7 +62,7 @@ pub fn code_block(props: &CodeBlockProps) -> Html {
                     <Button
                         classes={classes!("rounded-2xl")}
                         size={ButtonSize::Small}
-                        text={"Show all".to_owned()}
+                        text="Show all"
                         on_click={Callback::from(move |_| expanded.set(true))}
                     />
 

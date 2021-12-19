@@ -48,14 +48,14 @@ pub struct TitleProps {
 pub fn title(props: &TitleProps) -> Html {
     let text = if props.raw {
         html! {
-            <code>{ props.text.clone() }</code>
+            <code>{ &props.text }</code>
         }
     } else if props.capitalize {
         html! {
-            <span class="capitalize">{ props.text.to_lowercase().clone() }</span>
+            <span class="capitalize">{ props.text.to_lowercase() }</span>
         }
     } else {
-        html! { props.text.clone() }
+        html! { &props.text }
     };
 
     let meta = match &props.meta {

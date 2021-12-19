@@ -94,13 +94,13 @@ impl super::Model {
             },
             State::Fetching => html! {
                 <Message
-                    heading={"Progress".to_owned()}
-                    text={"Fetching and parsing...".to_owned()}
+                    heading="Progress"
+                    text="Fetching and parsing..."
                     classes={classes!("animate-pulse")}
                 />
             },
             State::Error(e) => html! {
-                <Message error={true} heading={"Error".to_owned()}>
+                <Message error={true} heading="Error">
                     <CodeBlock text={format!("Error: {:?}", e)}/>
                 </Message>
             },
@@ -114,7 +114,7 @@ impl super::Model {
                 {size}
                 on_click={ctx.link().callback(|_| Msg::Start)}
                 disabled={self.state.is_fetching()}
-                text={"Read".to_owned()}
+                text="Read"
             />
         }
     }
