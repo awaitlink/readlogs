@@ -27,10 +27,6 @@ pub fn code_block(props: &CodeBlockProps) -> Html {
         "text-xs",
     );
 
-    if !*expanded {
-        classes.push(classes!("mb-0", "rounded-b-none"));
-    }
-
     let full_text = props.text.clone();
 
     let (text, footer) = if *expanded {
@@ -45,6 +41,8 @@ pub fn code_block(props: &CodeBlockProps) -> Html {
         let footer = if text.len() == full_text.len() {
             html! {}
         } else {
+            classes.push(classes!("mb-0", "rounded-b-none"));
+
             html! {
                 <div class={classes!(
                     "max-w-none",
