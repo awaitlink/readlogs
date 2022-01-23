@@ -262,6 +262,10 @@ mod tests {
         "abc.defGhi.jkl123".to_owned(),
         Value::Generic("12:34:56".to_owned()),
     )); "time in value")]
+    #[test_case("abc.defGhi.jkl123: [A, BC, DEF]\n" => ("\n", InfoEntry::KeyValue(
+        "abc.defGhi.jkl123".to_owned(),
+        Value::Generic("[A, BC, DEF]".to_owned()),
+    )); "array in value")]
     #[test_case("abc: disabled true\n\n========= Logs =========\nINFO  1234-01-23T12:34:56.789Z This is a test message." => (
         "\n\n========= Logs =========\nINFO  1234-01-23T12:34:56.789Z This is a test message.",
         InfoEntry::KeyEnabledValue(
@@ -270,7 +274,7 @@ mod tests {
             Some(Value::Generic("true".to_owned())),
         ),
     ); "followed by log section")]
-    fn key_value_pair_ok(input: &str) -> (&str, InfoEntry) {
+    fn key_maybe_enabled_value_ok(input: &str) -> (&str, InfoEntry) {
         key_maybe_enabled_value(input).unwrap()
     }
 

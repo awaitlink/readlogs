@@ -48,19 +48,88 @@ fn jobs_inline_section(input: &str) -> IResult<&str, Section<InfoEntry>> {
     )(input)
 }
 
-fn local_metrics_subsection(input: &str) -> IResult<&str, Section<InfoEntry>> {
+#[derive(Clone, Copy)]
+enum IndentedSectionType {
+    LocalMetrics,
+    NotificationProfiles,
+}
+
+use IndentedSectionType::*;
+
+impl IndentedSectionType {
+    const SUPPORTED_SECTION_KEYS_LOCAL_METRICS: [&'static str; 4] = ["count", "p50", "p90", "p99"];
+    const SUPPORTED_SUBSECTION_KEYS_LOCAL_METRICS: [&'static str; 3] = ["p50", "p90", "p99"];
+
+    const SUPPORTED_SECTION_KEYS_NOTIFICATION_PROFILES: [&'static str; 4] = [
+        "Manually enabled profile",
+        "Manually enabled until",
+        "Manually disabled at",
+        "Now",
+    ];
+    const SUPPORTED_SUBSECTION_KEYS_NOTIFICATION_PROFILES: [&'static str; 6] = [
+        "allowMentions",
+        "allowCalls",
+        "schedule enabled",
+        "schedule start",
+        "schedule end",
+        "schedule days",
+    ];
+
+    fn supports_key_in_section(&self, key: &str) -> bool {
+        match self {
+            LocalMetrics => {
+                IndentedSectionType::SUPPORTED_SECTION_KEYS_LOCAL_METRICS.contains(&key)
+            }
+            NotificationProfiles => {
+                IndentedSectionType::SUPPORTED_SECTION_KEYS_NOTIFICATION_PROFILES.contains(&key)
+            }
+        }
+    }
+
+    fn supports_key_in_subsection(&self, key: &str) -> bool {
+        match self {
+            LocalMetrics => {
+                IndentedSectionType::SUPPORTED_SUBSECTION_KEYS_LOCAL_METRICS.contains(&key)
+            }
+            NotificationProfiles => {
+                IndentedSectionType::SUPPORTED_SUBSECTION_KEYS_NOTIFICATION_PROFILES.contains(&key)
+            }
+        }
+    }
+
+    const fn section_keyvalues_count(&self) -> usize {
+        match self {
+            LocalMetrics => IndentedSectionType::SUPPORTED_SECTION_KEYS_LOCAL_METRICS.len(),
+            NotificationProfiles => {
+                IndentedSectionType::SUPPORTED_SECTION_KEYS_NOTIFICATION_PROFILES.len()
+            }
+        }
+    }
+
+    const fn subsection_keyvalues_count(&self) -> usize {
+        match self {
+            LocalMetrics => IndentedSectionType::SUPPORTED_SUBSECTION_KEYS_LOCAL_METRICS.len(),
+            NotificationProfiles => {
+                IndentedSectionType::SUPPORTED_SUBSECTION_KEYS_NOTIFICATION_PROFILES.len()
+            }
+        }
+    }
+}
+
+fn indented_subsection<'a>(
+    ty: IndentedSectionType,
+) -> impl FnMut(&'a str) -> IResult<&'a str, Section<InfoEntry>> {
     map(
         tuple((
             is_not("\n"),
             count(
-                common::multispaced0(verify(
-                    common::key_maybe_enabled_value,
-                    |entry| match entry {
-                        InfoEntry::KeyValue(k, _) => ["p50", "p90", "p99"].contains(&k.as_str()),
+                common::multispaced0(verify(common::key_maybe_enabled_value, move |entry| {
+                    match entry {
+                        InfoEntry::KeyValue(k, _) => ty.supports_key_in_subsection(&k.as_str()),
                         _ => false,
-                    },
-                )),
-                3,
+                    }
+                })),
+                ty.subsection_keyvalues_count(),
             ),
         )),
         |(name, content)| Section {
@@ -68,33 +137,32 @@ fn local_metrics_subsection(input: &str) -> IResult<&str, Section<InfoEntry>> {
             content,
             subsections: vec![],
         },
-    )(input)
+    )
 }
 
-fn local_metrics_section(input: &str) -> IResult<&str, Section<InfoEntry>> {
+fn section_with_indented_subsections<'a>(
+    ty: IndentedSectionType,
+) -> impl FnMut(&'a str) -> IResult<&'a str, Section<InfoEntry>> {
     map(
         tuple((
             is_not("\n"),
             count(
-                common::multispaced0(verify(
-                    common::key_maybe_enabled_value,
-                    |entry| match entry {
-                        InfoEntry::KeyValue(k, _) => {
-                            ["count", "p50", "p90", "p99"].contains(&k.as_str())
-                        }
+                common::multispaced0(verify(common::key_maybe_enabled_value, move |entry| {
+                    match entry {
+                        InfoEntry::KeyValue(k, _) => ty.supports_key_in_section(&k.as_str()),
                         _ => false,
-                    },
-                )),
-                4,
+                    }
+                })),
+                ty.section_keyvalues_count(),
             ),
-            many0(local_metrics_subsection),
+            many0(common::multispaced0(indented_subsection(ty))),
         )),
         |(name, content, subsections)| Section {
             name: name.to_owned(),
             content,
             subsections,
         },
-    )(input)
+    )
 }
 
 fn generic_table(input: &str) -> IResult<&str, GenericTable> {
@@ -146,7 +214,13 @@ fn info_section(depth: SectionLevel) -> impl FnMut(&str) -> IResult<&str, Sectio
                     map(remote_object, |ro| vec![InfoEntry::RemoteObject(ro)]),
                     value(vec![InfoEntry::ExplicitNone], tag("None")),
                     many1(common::multispaced0(map(
-                        preceded(peek(not(local_metrics_section)), is_not("\n-=")),
+                        preceded(
+                            peek(not(alt((
+                                section_with_indented_subsections(LocalMetrics),
+                                section_with_indented_subsections(NotificationProfiles),
+                            )))),
+                            is_not("\n-="),
+                        ),
                         |s: &str| InfoEntry::Generic(s.to_owned()),
                     ))),
                 ))),
@@ -157,7 +231,31 @@ fn info_section(depth: SectionLevel) -> impl FnMut(&str) -> IResult<&str, Sectio
         let (remainder, subsections) = match depth {
             SectionLevel::Base => alt((
                 many1(info_section(SectionLevel::Sub)),
-                many0(common::multispaced0(local_metrics_section)),
+                many1(common::multispaced0(section_with_indented_subsections(
+                    LocalMetrics,
+                ))),
+                preceded(
+                    common::multispaced0(tag("Profiles:")),
+                    map(
+                        pair(
+                            opt(common::multispaced0(tag("No notification profiles"))),
+                            many0(common::multispaced0(indented_subsection(
+                                NotificationProfiles,
+                            ))),
+                        ),
+                        |(explicit_none, subsections)| {
+                            vec![Section {
+                                name: "Profiles".to_owned(),
+                                content: match explicit_none {
+                                    Some(_) => vec![InfoEntry::ExplicitNone],
+                                    None => vec![],
+                                },
+                                subsections,
+                            }]
+                        },
+                    ),
+                ),
+                success(vec![]),
             ))(remainder)?,
             SectionLevel::Sub => many0(common::multispaced0(jobs_inline_section))(remainder)?,
         };
@@ -541,6 +639,57 @@ mod tests {
                 subsections: vec![],
             }],
         }; "notifications"
+    )]
+    #[test_case(
+        "===== NOTIFICATION PROFILES =====\nManually enabled profile: 0\nManually enabled until  : 0\nManually disabled at    : 1234567890123\nNow                     : 1234567890321\n\nProfiles:\n    Profile 1\n    allowMentions   : false\n    allowCalls      : false\n    schedule enabled: false\n    schedule start  : 900\n    schedule end    : 2100\n    schedule days   : [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY]" =>
+        Section {
+            name: "NOTIFICATION PROFILES".to_owned(),
+            content: vec![
+                InfoEntry::KeyValue("Manually enabled profile".to_owned(), Value::Generic("0".to_owned())),
+                InfoEntry::KeyValue("Manually enabled until".to_owned(), Value::Generic("0".to_owned())),
+                InfoEntry::KeyValue("Manually disabled at".to_owned(), Value::Generic("1234567890123".to_owned())),
+                InfoEntry::KeyValue("Now".to_owned(), Value::Generic("1234567890321".to_owned())),
+            ],
+            subsections: vec![
+                Section {
+                    name: "Profiles".to_owned(),
+                    content: vec![],
+                    subsections: vec![
+                        Section {
+                            name: "Profile 1".to_owned(),
+                            content: vec![
+                                InfoEntry::KeyValue("allowMentions".to_owned(), Value::Generic("false".to_owned())),
+                                InfoEntry::KeyValue("allowCalls".to_owned(), Value::Generic("false".to_owned())),
+                                InfoEntry::KeyValue("schedule enabled".to_owned(), Value::Generic("false".to_owned())),
+                                InfoEntry::KeyValue("schedule start".to_owned(), Value::Generic("900".to_owned())),
+                                InfoEntry::KeyValue("schedule end".to_owned(), Value::Generic("2100".to_owned())),
+                                InfoEntry::KeyValue("schedule days".to_owned(), Value::Generic("[MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY]".to_owned())),
+                            ],
+                            subsections: vec![],
+                        }
+                    ],
+                }
+            ],
+        }; "notification profiles"
+    )]
+    #[test_case(
+        "===== NOTIFICATION PROFILES =====\nManually enabled profile: 0\nManually enabled until  : 0\nManually disabled at    : 1234567890123\nNow                     : 1234567890321\n\nProfiles:\n    No notification profiles" =>
+        Section {
+            name: "NOTIFICATION PROFILES".to_owned(),
+            content: vec![
+                InfoEntry::KeyValue("Manually enabled profile".to_owned(), Value::Generic("0".to_owned())),
+                InfoEntry::KeyValue("Manually enabled until".to_owned(), Value::Generic("0".to_owned())),
+                InfoEntry::KeyValue("Manually disabled at".to_owned(), Value::Generic("1234567890123".to_owned())),
+                InfoEntry::KeyValue("Now".to_owned(), Value::Generic("1234567890321".to_owned())),
+            ],
+            subsections: vec![
+                Section {
+                    name: "Profiles".to_owned(),
+                    content: vec![InfoEntry::ExplicitNone],
+                    subsections: vec![],
+                }
+            ],
+        }; "notification profiles empty"
     )]
     #[test_case(
         "========== TRACE ==========\nhttps://debuglogs.org/0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123" =>
