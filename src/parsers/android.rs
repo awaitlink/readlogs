@@ -623,21 +623,30 @@ mod tests {
         }; "power"
     )]
     #[test_case(
-        "====== NOTIFICATIONS ======\nTest key        : true\nAnother test key: false\n\n-- abc_def_v2\ntest       : LOW (2)\nanotherTest: N/A (Requires API 30)" =>
+        "====== NOTIFICATIONS ======\nTest key        : true\nAnother test key: false\n\n-- abc_def_v2\ntest       : LOW (2)\nanotherTest: N/A (Requires API 30)\n\n-- abc_def : 123\ntest       : value" =>
         Section {
             name: "NOTIFICATIONS".to_owned(),
             content: vec![
                 InfoEntry::KeyValue("Test key".to_owned(), Value::Generic("true".to_owned())),
                 InfoEntry::KeyValue("Another test key".to_owned(), Value::Generic("false".to_owned())),
             ],
-            subsections: vec![Section {
-                name: "abc_def_v2".to_owned(),
-                content: vec![
-                    InfoEntry::KeyValue("test".to_owned(), Value::Generic("LOW (2)".to_owned())),
-                    InfoEntry::KeyValue("anotherTest".to_owned(), Value::Generic("N/A (Requires API 30)".to_owned())),
-                ],
-                subsections: vec![],
-            }],
+            subsections: vec![
+                Section {
+                    name: "abc_def_v2".to_owned(),
+                    content: vec![
+                        InfoEntry::KeyValue("test".to_owned(), Value::Generic("LOW (2)".to_owned())),
+                        InfoEntry::KeyValue("anotherTest".to_owned(), Value::Generic("N/A (Requires API 30)".to_owned())),
+                    ],
+                    subsections: vec![],
+                },
+                Section {
+                    name: "abc_def : 123".to_owned(),
+                    content: vec![
+                        InfoEntry::KeyValue("test".to_owned(), Value::Generic("value".to_owned())),
+                    ],
+                    subsections: vec![],
+                },
+            ],
         }; "notifications"
     )]
     #[test_case(

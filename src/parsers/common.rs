@@ -3,7 +3,7 @@ use nom::{
     branch::alt,
     bytes::complete::{is_not, tag, take_until},
     character::complete::{digit1, multispace0, newline, space0},
-    combinator::{eof, map, opt, peek, value, verify},
+    combinator::{eof, map, not, opt, peek, value, verify},
     error::ParseError,
     multi::{many1, many_till, separated_list1},
     sequence::{delimited, preceded, separated_pair, terminated, tuple},
@@ -71,6 +71,7 @@ pub fn key_maybe_enabled_value(input: &str) -> IResult<&str, InfoEntry> {
 
     map(
         tuple((
+            peek(not(tag("--"))),
             parse_key,
             opt(parse_enabled),
             delimited(
@@ -79,7 +80,7 @@ pub fn key_maybe_enabled_value(input: &str) -> IResult<&str, InfoEntry> {
                 peek(alt((tag("\n"), tag("|"), eof))),
             ),
         )),
-        |(k, enabled, v)| match enabled {
+        |(_, k, enabled, v)| match enabled {
             Some(enabled) => InfoEntry::KeyEnabledValue(k.trim().to_owned(), enabled, v),
             None => InfoEntry::KeyValue(k.trim().to_owned(), v.unwrap()),
         },
@@ -276,6 +277,11 @@ mod tests {
     ); "followed by log section")]
     fn key_maybe_enabled_value_ok(input: &str) -> (&str, InfoEntry) {
         key_maybe_enabled_value(input).unwrap()
+    }
+
+    #[test]
+    fn key_maybe_enabled_value_err() {
+        assert!(key_maybe_enabled_value("-- test : 123").is_err())
     }
 
     #[test_case("1234/01/23 12:34:56:789" => NaiveDate::from_ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789); "basic")]
