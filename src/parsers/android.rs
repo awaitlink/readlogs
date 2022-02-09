@@ -705,7 +705,7 @@ mod tests {
         Section {
             name: "TRACE".to_owned(),
             content: vec![InfoEntry::RemoteObject(
-                RemoteObject::new_unchecked(Platform::Android, "0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123")
+                RemoteObject::new_unchecked(Platform::Android, None, "0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123")
             )],
             subsections: vec![],
         }; "trace"

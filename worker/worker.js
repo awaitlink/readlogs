@@ -14,24 +14,25 @@ async function handleRequest(request) {
         return notFound();
     }
 
-    const { pathname } = new URL(request.url);
+    const { pathname, searchParams } = new URL(request.url);
+    const version = searchParams.has("v") ? searchParams.get("v") : null;
 
     if (pathname.startsWith("/android")) {
-        return await respond(origin, pathname, "", true);
+        return await respond(origin, pathname, version, "android", "", true);
     }
 
     if (pathname.startsWith("/ios")) {
-        return await respond(origin, pathname, ".zip", false);
+        return await respond(origin, pathname, version, "ios", ".zip", false);
     }
 
     if (pathname.startsWith("/desktop")) {
-        return await respond(origin, pathname, ".gz", true);
+        return await respond(origin, pathname, version, "desktop", ".gz", true);
     }
 
     return notFound(origin);
 }
 
-async function respond(origin, pathname, extension, isAGzip) {
+async function respond(origin, pathname, version, platform, extension, isAGzip) {
     const regex = new RegExp("^[a-f0-9]{64}$");
     const key = pathname.split("/")[2];
 
@@ -39,7 +40,12 @@ async function respond(origin, pathname, extension, isAGzip) {
         return notFound(origin);
     }
 
-    const response = await fetch("https://debuglogs.org/" + key + extension);
+    var url = "https://debuglogs.org/" + key + extension;
+    if (version !== null) {
+        url = "https://debuglogs.org/" + platform + "/" + version + "/" + key + extension;
+    }
+
+    const response = await fetch(url);
 
     if (!response.ok || response.headers.get("content-length") === "243") { // Hacky, but this is the length that errors have.
         return notFound(origin);

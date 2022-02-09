@@ -20,14 +20,17 @@ This repository primarily contains two pieces of software:
 
 ## How it works
 ### 1. Parsing the debug log URL
-All debug log URLs have the same underlying format, so the given URL is parsed before fetching in order to minimize requests to the worker and catch any potential copy/paste mistakes earlier.
+All debug log URLs have one of the below formats. The provided URL is parsed before fetching in order catch any potential copy/paste mistakes earlier, thus minimizing requests to the worker.
 
 ```text
 https://debuglogs.org/{key}{ext?}
+https://debuglogs.org/{platform}/{version}/{key}{ext?}
 ```
 
-- The `key` is a 64-character string consisting of `a-f` and `0-9`.
-- The `ext` is `.zip` for Signal iOS, `.gz` for Signal Desktop, and none for Signal Android.
+- `platform` is `ios` for Signal iOS, `desktop` for Signal Desktop, and `android` for Signal Android.
+- `version` is the Signal app's version.
+- `key` is a 64-character string consisting of `a-f` and `0-9`.
+- `ext` is `.zip` for Signal iOS, `.gz` for Signal Desktop, and none for Signal Android.
 
 ### 2. Fetching
 In general, the file is fetched using the worker: it's not possible to fetch directly from `debuglogs.org` due to its [Cross-Origin Resource Sharing](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) policy.
