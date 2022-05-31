@@ -32,7 +32,7 @@ pub enum Msg {
     ApplySearchQuery,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum Object {
     Single(File),
     Multiple {
@@ -55,7 +55,7 @@ impl PartialEq for State {
             (State::NoData, State::NoData) => true,
             (State::Error(_), State::Error(_)) => false,
             (State::Fetching, State::Fetching) => true,
-            (State::Ready(a), State::Ready(b)) => a == b,
+            (State::Ready(_), State::Ready(_)) => false,
             _ => false,
         }
     }
@@ -224,7 +224,7 @@ impl Model {
             },
             Msg::FetchError(e) => Err(e),
             Msg::FinishedFetchText(text) => {
-                let file = File::from_text(self.remote_object.clone().unwrap(), None, text)?;
+                let file = File::from_text(self.remote_object.clone().unwrap(), None, text);
 
                 Ok(self.state.neq_assign(State::Ready(Object::Single(file))))
             }
@@ -251,7 +251,7 @@ impl Model {
 
                     files.insert(
                         Rc::clone(&name),
-                        File::from_text(self.remote_object.clone().unwrap(), Some(name), text)?,
+                        File::from_text(self.remote_object.clone().unwrap(), Some(name), text),
                     );
                 }
 

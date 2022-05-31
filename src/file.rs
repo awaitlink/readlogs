@@ -4,17 +4,17 @@ use anyhow::Context;
 use yew::prelude::*;
 
 use crate::{
-    components::{ButtonSize, CodeBlock, DownloadButton, Title, TitleLevel},
+    components::{ButtonSize, CodeBlock, DownloadButton, Message, Title, TitleLevel},
     parsers::*,
-    RemoteObject, RenderedLogSection, SearchQuery, Tab,
+    Platform, RemoteObject, RenderedLogSection, SearchQuery, Tab,
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct File {
     remote_object: RemoteObject,
     name: Option<Rc<LogFilename>>,
     text: Rc<String>,
-    parsed: Content,
+    parsed: anyhow::Result<Content>,
 }
 
 impl File {
@@ -22,18 +22,18 @@ impl File {
         remote_object: RemoteObject,
         name: Option<Rc<LogFilename>>,
         text: String,
-    ) -> anyhow::Result<Self> {
+    ) -> Self {
         let parsed = Content::parse(remote_object.platform(), &text).context(format!(
             "failed to parse {} debug log file",
             remote_object.platform()
-        ))?;
+        ));
 
-        Ok(Self {
+        Self {
             remote_object,
             name,
             text: Rc::new(text),
             parsed,
-        })
+        }
     }
 
     pub fn view(&self, tab: Tab, query: &SearchQuery) -> Html {
@@ -48,17 +48,23 @@ impl File {
         };
 
         let content = match tab {
-            Tab::Information => self.parsed.view_information(self.remote_object.platform()),
-            Tab::Logs => RenderedLogSection {
-                title: tab.to_string(),
-                subsections: self.parsed.view_logs(query),
-                ..Default::default()
-            }
-            .view(
-                self.remote_object.platform().is_android(),
-                self.remote_object.platform().is_android(),
-                true,
-            ),
+            Tab::Information => match &self.parsed {
+                Ok(parsed) => parsed.view_information(self.remote_object.platform()),
+                Err(error) => self.view_parsing_error(error),
+            },
+            Tab::Logs => match &self.parsed {
+                Ok(parsed) => RenderedLogSection {
+                    title: tab.to_string(),
+                    subsections: parsed.view_logs(query),
+                    ..Default::default()
+                }
+                .view(
+                    self.remote_object.platform().is_android(),
+                    self.remote_object.platform().is_android(),
+                    true,
+                ),
+                Err(error) => self.view_parsing_error(error),
+            },
             Tab::Raw => html! {
                 <>
                     <DownloadButton
@@ -91,6 +97,24 @@ impl File {
                 { title }
                 { content }
             </>
+        }
+    }
+
+    fn view_parsing_error(&self, error: &anyhow::Error) -> Html {
+        let notice = "You can still view the raw log by switching to the corresponding tab below"
+            .to_owned()
+            + match self.remote_object.platform() {
+                Platform::Android | Platform::Desktop => ".",
+                Platform::Ios => {
+                    " or check other files above to see if they were successfully parsed."
+                }
+            };
+
+        html! {
+            <Message error={true} heading="Error parsing file">
+                <CodeBlock text={Rc::new(format!("Error: {:?}", error))}/>
+                <span class="text-brand-text">{notice}</span>
+            </Message>
         }
     }
 }
