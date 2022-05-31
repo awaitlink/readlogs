@@ -52,67 +52,58 @@ fn jobs_inline_section(input: &str) -> IResult<&str, Section<InfoEntry>> {
 enum IndentedSectionType {
     LocalMetrics,
     NotificationProfiles,
+    OwnershipInfo,
 }
 
 use IndentedSectionType::*;
 
 impl IndentedSectionType {
-    const SUPPORTED_SECTION_KEYS_LOCAL_METRICS: [&'static str; 4] = ["count", "p50", "p90", "p99"];
-    const SUPPORTED_SUBSECTION_KEYS_LOCAL_METRICS: [&'static str; 3] = ["p50", "p90", "p99"];
+    fn supported_section_keys(&self) -> Vec<&'static str> {
+        match self {
+            LocalMetrics => vec!["count", "p50", "p90", "p99"],
+            NotificationProfiles => {
+                vec![
+                    "Manually enabled profile",
+                    "Manually enabled until",
+                    "Manually disabled at",
+                    "Now",
+                ]
+            }
+            OwnershipInfo => vec![],
+        }
+    }
 
-    const SUPPORTED_SECTION_KEYS_NOTIFICATION_PROFILES: [&'static str; 4] = [
-        "Manually enabled profile",
-        "Manually enabled until",
-        "Manually disabled at",
-        "Now",
-    ];
-    const SUPPORTED_SUBSECTION_KEYS_NOTIFICATION_PROFILES: [&'static str; 6] = [
-        "allowMentions",
-        "allowCalls",
-        "schedule enabled",
-        "schedule start",
-        "schedule end",
-        "schedule days",
-    ];
+    fn supported_subsection_keys(&self) -> Vec<&'static str> {
+        match self {
+            LocalMetrics => vec!["p50", "p90", "p99"],
+            NotificationProfiles => {
+                vec![
+                    "allowMentions",
+                    "allowCalls",
+                    "schedule enabled",
+                    "schedule start",
+                    "schedule end",
+                    "schedule days",
+                ]
+            }
+            OwnershipInfo => vec!["reserved", "unreserved"],
+        }
+    }
 
     fn supports_key_in_section(&self, key: &str) -> bool {
-        match self {
-            LocalMetrics => {
-                IndentedSectionType::SUPPORTED_SECTION_KEYS_LOCAL_METRICS.contains(&key)
-            }
-            NotificationProfiles => {
-                IndentedSectionType::SUPPORTED_SECTION_KEYS_NOTIFICATION_PROFILES.contains(&key)
-            }
-        }
+        self.supported_section_keys().contains(&key)
     }
 
     fn supports_key_in_subsection(&self, key: &str) -> bool {
-        match self {
-            LocalMetrics => {
-                IndentedSectionType::SUPPORTED_SUBSECTION_KEYS_LOCAL_METRICS.contains(&key)
-            }
-            NotificationProfiles => {
-                IndentedSectionType::SUPPORTED_SUBSECTION_KEYS_NOTIFICATION_PROFILES.contains(&key)
-            }
-        }
+        self.supported_subsection_keys().contains(&key)
     }
 
-    const fn section_keyvalues_count(&self) -> usize {
-        match self {
-            LocalMetrics => IndentedSectionType::SUPPORTED_SECTION_KEYS_LOCAL_METRICS.len(),
-            NotificationProfiles => {
-                IndentedSectionType::SUPPORTED_SECTION_KEYS_NOTIFICATION_PROFILES.len()
-            }
-        }
+    fn section_keyvalues_count(&self) -> usize {
+        self.supported_section_keys().len()
     }
 
-    const fn subsection_keyvalues_count(&self) -> usize {
-        match self {
-            LocalMetrics => IndentedSectionType::SUPPORTED_SUBSECTION_KEYS_LOCAL_METRICS.len(),
-            NotificationProfiles => {
-                IndentedSectionType::SUPPORTED_SUBSECTION_KEYS_NOTIFICATION_PROFILES.len()
-            }
-        }
+    fn subsection_keyvalues_count(&self) -> usize {
+        self.supported_subsection_keys().len()
     }
 }
 
@@ -137,6 +128,33 @@ fn indented_subsection<'a>(
             content,
             subsections: vec![],
         },
+    )
+}
+
+fn subsection_with_indented_subsections<'a>(
+    raw_name: &'a str,
+    name: &'a str,
+    explicit_none: &'a str,
+    ty: IndentedSectionType,
+) -> impl FnMut(&'a str) -> IResult<&'a str, Vec<Section<InfoEntry>>> {
+    preceded(
+        common::multispaced0(tag(raw_name)),
+        map(
+            pair(
+                opt(common::multispaced0(tag(explicit_none))),
+                many0(common::multispaced0(indented_subsection(ty))),
+            ),
+            |(explicit_none, subsections)| {
+                vec![Section {
+                    name: name.to_owned(),
+                    content: match explicit_none {
+                        Some(_) => vec![InfoEntry::ExplicitNone],
+                        None => vec![],
+                    },
+                    subsections,
+                }]
+            },
+        ),
     )
 }
 
@@ -218,6 +236,7 @@ fn info_section(depth: SectionLevel) -> impl FnMut(&str) -> IResult<&str, Sectio
                             peek(not(alt((
                                 section_with_indented_subsections(LocalMetrics),
                                 section_with_indented_subsections(NotificationProfiles),
+                                // section_with_indented_subsections(OwnershipInfo), // TODO: Investigate, it causes parsers::android::tests::info_section_ok::blocked_threads failure
                             )))),
                             is_not("\n-="),
                         ),
@@ -234,26 +253,17 @@ fn info_section(depth: SectionLevel) -> impl FnMut(&str) -> IResult<&str, Sectio
                 many1(common::multispaced0(section_with_indented_subsections(
                     LocalMetrics,
                 ))),
-                preceded(
-                    common::multispaced0(tag("Profiles:")),
-                    map(
-                        pair(
-                            opt(common::multispaced0(tag("No notification profiles"))),
-                            many0(common::multispaced0(indented_subsection(
-                                NotificationProfiles,
-                            ))),
-                        ),
-                        |(explicit_none, subsections)| {
-                            vec![Section {
-                                name: "Profiles".to_owned(),
-                                content: match explicit_none {
-                                    Some(_) => vec![InfoEntry::ExplicitNone],
-                                    None => vec![],
-                                },
-                                subsections,
-                            }]
-                        },
-                    ),
+                subsection_with_indented_subsections(
+                    "Profiles:",
+                    "Profiles",
+                    "No notification profiles",
+                    NotificationProfiles,
+                ),
+                subsection_with_indented_subsections(
+                    "Ownership Info:",
+                    "Ownership Info",
+                    "No ownership info to display.",
+                    OwnershipInfo,
                 ),
                 success(vec![]),
             ))(remainder)?,
@@ -699,6 +709,67 @@ mod tests {
                 }
             ],
         }; "notification profiles empty"
+    )]
+    #[test_case(
+        "======== EXOPLAYER POOL =========\nTotal players created: 0\nMax allowed unreserved instances: 12\nMax allowed reserved instances: 1\nAvailable created unreserved instances: 0\nAvailable created reserved instances: 0\nTotal unreserved created: 0\nTotal reserved created: 0\n\nOwnership Info:\n  No ownership info to display." =>
+        Section {
+            name: "EXOPLAYER POOL".to_owned(),
+            content: vec![
+                InfoEntry::KeyValue("Total players created".to_owned(), Value::Generic("0".to_owned())),
+                InfoEntry::KeyValue("Max allowed unreserved instances".to_owned(), Value::Generic("12".to_owned())),
+                InfoEntry::KeyValue("Max allowed reserved instances".to_owned(), Value::Generic("1".to_owned())),
+                InfoEntry::KeyValue("Available created unreserved instances".to_owned(), Value::Generic("0".to_owned())),
+                InfoEntry::KeyValue("Available created reserved instances".to_owned(), Value::Generic("0".to_owned())),
+                InfoEntry::KeyValue("Total unreserved created".to_owned(), Value::Generic("0".to_owned())),
+                InfoEntry::KeyValue("Total reserved created".to_owned(), Value::Generic("0".to_owned())),
+            ],
+            subsections: vec![
+                Section {
+                    name: "Ownership Info".to_owned(),
+                    content: vec![InfoEntry::ExplicitNone],
+                    subsections: vec![],
+                }
+            ],
+        }; "exoplayer pool (empty)"
+    )]
+    #[test_case(
+        "======== EXOPLAYER POOL =========\nTotal players created: 0\nMax allowed unreserved instances: 12\nMax allowed reserved instances: 1\nAvailable created unreserved instances: 0\nAvailable created reserved instances: 0\nTotal unreserved created: 0\nTotal reserved created: 0\n\nOwnership Info:\n  Owner abc def\n    reserved: 12\n    unreserved: 1\n  Owner abc def ghi\n    reserved: 5\n    unreserved: 4\n" =>
+        Section {
+            name: "EXOPLAYER POOL".to_owned(),
+            content: vec![
+                InfoEntry::KeyValue("Total players created".to_owned(), Value::Generic("0".to_owned())),
+                InfoEntry::KeyValue("Max allowed unreserved instances".to_owned(), Value::Generic("12".to_owned())),
+                InfoEntry::KeyValue("Max allowed reserved instances".to_owned(), Value::Generic("1".to_owned())),
+                InfoEntry::KeyValue("Available created unreserved instances".to_owned(), Value::Generic("0".to_owned())),
+                InfoEntry::KeyValue("Available created reserved instances".to_owned(), Value::Generic("0".to_owned())),
+                InfoEntry::KeyValue("Total unreserved created".to_owned(), Value::Generic("0".to_owned())),
+                InfoEntry::KeyValue("Total reserved created".to_owned(), Value::Generic("0".to_owned())),
+            ],
+            subsections: vec![
+                Section {
+                    name: "Ownership Info".to_owned(),
+                    content: vec![],
+                    subsections: vec![
+                        Section {
+                            name: "Owner abc def".to_owned(),
+                            content: vec![
+                                InfoEntry::KeyValue("reserved".to_owned(), Value::Generic("12".to_owned())),
+                                InfoEntry::KeyValue("unreserved".to_owned(), Value::Generic("1".to_owned())),
+                            ],
+                            subsections: vec![],
+                        },
+                        Section {
+                            name: "Owner abc def ghi".to_owned(),
+                            content: vec![
+                                InfoEntry::KeyValue("reserved".to_owned(), Value::Generic("5".to_owned())),
+                                InfoEntry::KeyValue("unreserved".to_owned(), Value::Generic("4".to_owned())),
+                            ],
+                            subsections: vec![],
+                        },
+                    ],
+                },
+            ],
+        }; "exoplayer pool (with ownership info)"
     )]
     #[test_case(
         "========== TRACE ==========\nhttps://debuglogs.org/0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123" =>
