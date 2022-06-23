@@ -104,4 +104,4 @@ The response is, however, cached locally in the browser (currently, for 7 days) 
 1. The worker should now be published at `<name>.<your-subdomain>.workers.dev`.
 
 ## Disclaimer
-This is an unofficial project. It is *not* affilated with the Signal Technology Foundation or Signal Messenger, LLC.
+This is an unofficial project. It is *not* affiliated with the Signal Technology Foundation or Signal Messenger, LLC.

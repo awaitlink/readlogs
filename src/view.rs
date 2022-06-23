@@ -251,7 +251,7 @@ impl super::Model {
                 <article class="prose dark:prose-invert prose-sm mx-auto">
                     <p>
                         <Link href="https://github.com/u32i64/readlogs" text="Readlogs" no_referrer={false} no_follow={false}/>
-                        { " is an unofficial project. It is not affilated with the Signal Technology Foundation or Signal Messenger, LLC." }
+                        { " is an unofficial project. It is not affiliated with the Signal Technology Foundation or Signal Messenger, LLC." }
                     </p>
                     <p><code>{ env!("VERGEN_GIT_SHA_SHORT") }</code></p>
                 </article>
