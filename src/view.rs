@@ -70,7 +70,7 @@ impl super::Model {
                     classes={classes!("rounded-l-2xl")}
                     value={self.debug_log_url.clone()}
                     on_change={ctx.link().callback(Msg::UpdateUrl)}
-                    on_submit_maybe={ctx.link().batch_callback(|actually: bool| actually.then(|| Msg::Start))}
+                    on_submit_maybe={ctx.link().batch_callback(|actually: bool| actually.then_some(Msg::Start))}
                     placeholder="https://debuglogs.org/..."
                     disabled={self.state.is_fetching()}
                     autofocus={true}
@@ -208,7 +208,7 @@ impl super::Model {
                         <Input
                             value={self.pending_query.string.clone()}
                             on_change={ctx.link().callback(Msg::UpdateQuery)}
-                            on_submit_maybe={ctx.link().batch_callback(|actually: bool| actually.then(|| Msg::ApplySearchQuery))}
+                            on_submit_maybe={ctx.link().batch_callback(|actually: bool| actually.then_some(Msg::ApplySearchQuery))}
                             placeholder={
                                 "Search ".to_owned()
                                     + &self.pending_query.min_log_level.to_string().to_lowercase()

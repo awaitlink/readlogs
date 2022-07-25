@@ -37,7 +37,7 @@ pub fn link(props: &LinkProps) -> Html {
         <a
             class={props.classes.clone()}
             href={props.href.clone()}
-            target={props.new_tab.then(|| "_blank")}
+            target={props.new_tab.then_some("_blank")}
             {rel}
         >
             { &props.text }

@@ -1,6 +1,6 @@
 use derive_more::{Display, IsVariant};
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, IsVariant)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, IsVariant)]
 pub enum Platform {
     Android,
     #[display(fmt = "iOS")]

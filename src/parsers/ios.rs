@@ -13,7 +13,7 @@ use crate::{parsers::*, LogLevel};
 
 const DEFAULT_LOGS_SECTION_NAME: &str = "Logs";
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LogEntryMetadata {
     pub file: String,
     pub line: String,
@@ -26,9 +26,9 @@ fn level(input: &str) -> IResult<&str, LogLevel> {
     })(input)
 }
 
-fn metadata(
-    input: &str,
-) -> IResult<&str, (DateTime<Utc>, Option<LogLevel>, Option<LogEntryMetadata>)> {
+type Metadata = (DateTime<Utc>, Option<LogLevel>, Option<LogEntryMetadata>);
+
+fn metadata(input: &str) -> IResult<&str, Metadata> {
     let verifier = |s: &str| !s.contains('\n');
 
     let (remainder, (dt, _, lvl, meta)) = tuple((
@@ -151,7 +151,7 @@ mod tests {
         (test_timestamp(789), None, None);
         "no log level, no meta"
     )]
-    fn metadata_ok(input: &str) -> (DateTime<Utc>, Option<LogLevel>, Option<LogEntryMetadata>) {
+    fn metadata_ok(input: &str) -> Metadata {
         parsing_test(metadata, input)
     }
 

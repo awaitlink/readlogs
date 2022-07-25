@@ -2,7 +2,7 @@ use yew::prelude::*;
 
 use crate::components::{Icon, Link};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ButtonSize {
     Large,
     Medium,

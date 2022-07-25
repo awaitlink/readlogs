@@ -3,7 +3,7 @@ use yew::prelude::*;
 
 use crate::components::Badge;
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd)]
 pub enum TitleLevel {
     H1,
     H2,

@@ -12,7 +12,7 @@ pub const KEY_LENGTH: usize = 64;
 pub const BASE_DEBUGLOGS_URL: &str = "https://debuglogs.org/";
 pub const BASE_WORKER_URL: &str = "https://getlogs.warp.workers.dev/";
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemoteObject {
     platform: Platform,
     version: Option<String>,

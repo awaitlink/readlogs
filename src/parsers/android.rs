@@ -116,7 +116,7 @@ fn indented_subsection<'a>(
             count(
                 common::multispaced0(verify(common::key_maybe_enabled_value, move |entry| {
                     match entry {
-                        InfoEntry::KeyValue(k, _) => ty.supports_key_in_subsection(&k.as_str()),
+                        InfoEntry::KeyValue(k, _) => ty.supports_key_in_subsection(k.as_str()),
                         _ => false,
                     }
                 })),
@@ -167,7 +167,7 @@ fn section_with_indented_subsections<'a>(
             count(
                 common::multispaced0(verify(common::key_maybe_enabled_value, move |entry| {
                     match entry {
-                        InfoEntry::KeyValue(k, _) => ty.supports_key_in_section(&k.as_str()),
+                        InfoEntry::KeyValue(k, _) => ty.supports_key_in_section(k.as_str()),
                         _ => false,
                     }
                 })),
@@ -917,13 +917,13 @@ mod tests {
     }
 
     #[test_case("[1.23.4] [5678 ] 1234-01-23 12:34:56.789 GMT+01:00 I abc: Log message" => LogEntry {
-        timestamp: FixedOffset::east(1 * 3600).ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string(),
+        timestamp: FixedOffset::east(3600).ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string(),
         level: Some(LogLevel::Info),
         meta: PlatformMetadata::AndroidLogger { version: "1.23.4".to_owned(), thread_id: "5678".to_owned(), tag: "abc".to_owned() },
         message: "Log message".to_owned(),
     }; "basic")]
     #[test_case("[1.23.4] [5678 ] 1234-01-23 12:34:56.789 GMT+01:00 I abc: Log message\ncontinues here!" => LogEntry {
-        timestamp: FixedOffset::east(1 * 3600).ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string(),
+        timestamp: FixedOffset::east(3600).ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string(),
         level: Some(LogLevel::Info),
         meta: PlatformMetadata::AndroidLogger { version: "1.23.4".to_owned(), thread_id: "5678".to_owned(), tag: "abc".to_owned() },
         message: "Log message\ncontinues here!".to_owned(),
@@ -956,7 +956,7 @@ mod tests {
                         name: LOGGER_SECTION_NAME.to_owned(),
                         content: vec![
                             LogEntry {
-                                timestamp: FixedOffset::east(1 * 3600)
+                                timestamp: FixedOffset::east(3600)
                                     .ymd(1234, 1, 23)
                                     .and_hms_milli(12, 34, 56, 789)
                                     .to_string(),
@@ -969,7 +969,7 @@ mod tests {
                                 message: "Log message".to_owned(),
                             },
                             LogEntry {
-                                timestamp: FixedOffset::east(1 * 3600)
+                                timestamp: FixedOffset::east(3600)
                                     .ymd(1234, 1, 23)
                                     .and_hms_milli(12, 34, 56, 790)
                                     .to_string(),

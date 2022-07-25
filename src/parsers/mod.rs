@@ -26,7 +26,7 @@ pub struct Section<C> {
     pub subsections: Vec<Section<C>>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InfoEntry {
     KeyValue(String, Value),
     KeyEnabledValue(String, bool, Option<Value>),
@@ -36,13 +36,13 @@ pub enum InfoEntry {
     Generic(String),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
     Generic(String),
     BucketedFlag(Vec<Bucket>),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GenericTable {
     pub header: Vec<String>,
     pub rows: Vec<Vec<String>>,
@@ -54,13 +54,13 @@ impl Default for Value {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Bucket {
     pub country_code: String,
     pub value: String,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LogEntry {
     pub timestamp: String,
     pub level: Option<LogLevel>,
@@ -68,7 +68,7 @@ pub struct LogEntry {
     pub message: String,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlatformMetadata {
     AndroidLogcat {
         process_id: String,
