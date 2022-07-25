@@ -9,7 +9,7 @@ use nom::{
     IResult,
 };
 
-use crate::{impl_from_str, parsers::common};
+use crate::{impl_from_str, parsers::*};
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum AppId {
@@ -31,7 +31,8 @@ pub struct LogFilename {
     pub extension: String,
 }
 
-fn app_id_with_space(input: &str) -> IResult<&str, AppId> {
+#[traceable_parser]
+fn app_id_with_space(input: Span) -> IResult<Span, AppId> {
     preceded(
         tag("org.whispersystems.signal"),
         alt((
@@ -51,7 +52,8 @@ fn app_id_with_space(input: &str) -> IResult<&str, AppId> {
     )(input)
 }
 
-fn log_filename(input: &str) -> IResult<&str, LogFilename> {
+#[traceable_parser]
+fn log_filename(input: Span) -> IResult<Span, LogFilename> {
     let (remainder, submission_time) =
         common::naive_date_time(None, ".", " ", ".", None, None)(input)?;
     let (remainder, folder_id) = delimited(tag(" "), take_until("/"), tag("/"))(remainder)?;
@@ -64,10 +66,10 @@ fn log_filename(input: &str) -> IResult<&str, LogFilename> {
         remainder,
         LogFilename {
             submission_time,
-            folder_id: folder_id.to_owned(),
+            folder_id: folder_id.fragment().to_string(),
             app_id,
             file_time: DateTime::<Utc>::from_utc(file_time, Utc),
-            extension: extension.to_owned(),
+            extension: extension.fragment().to_string(),
         },
     ))
 }
@@ -79,8 +81,7 @@ mod tests {
     use test_case::test_case;
 
     use super::*;
-
-    use crate::utils::parsing_test;
+    use crate::utils::test_parsing;
 
     #[test]
     fn partial_ord() {
@@ -111,22 +112,26 @@ mod tests {
         assert!(c < b);
     }
 
-    #[test_case("org.whispersystems.signal " => AppId::Signal)]
-    #[test_case("org.whispersystems.signal.SignalNSE " => AppId::NotificationServiceExtension)]
-    #[test_case("org.whispersystems.signal.NotificationServiceExtension " => AppId::NotificationServiceExtension)]
-    #[test_case("org.whispersystems.signal.shareextension " => AppId::ShareAppExtension)]
-    fn app_id_with_space_ok(input: &str) -> AppId {
-        parsing_test(app_id_with_space, input)
+    #[test_case("org.whispersystems.signal ", AppId::Signal)]
+    #[test_case(
+        "org.whispersystems.signal.SignalNSE ",
+        AppId::NotificationServiceExtension
+    )]
+    #[test_case(
+        "org.whispersystems.signal.NotificationServiceExtension ",
+        AppId::NotificationServiceExtension
+    )]
+    #[test_case("org.whispersystems.signal.shareextension ", AppId::ShareAppExtension)]
+    fn app_id_with_space_ok(input: &str, output: AppId) {
+        test_parsing(app_id_with_space, input, "", output)
     }
 
     #[test]
     fn log_filename_ok() {
-        let (remainder, result) = log_filename("1234.01.23 12.34.56 ABCD1234-1AB2-3CDE-456F-789AB0CD1E2F/org.whispersystems.signal 1234-01-22--06-54-32-109.log").unwrap();
-
-        assert_eq!(remainder, "", "remainder should be empty");
-
-        assert_eq!(
-            result,
+        test_parsing(
+            log_filename,
+            "1234.01.23 12.34.56 ABCD1234-1AB2-3CDE-456F-789AB0CD1E2F/org.whispersystems.signal 1234-01-22--06-54-32-109.log",
+            "",
             LogFilename {
                 submission_time: NaiveDate::from_ymd(1234, 1, 23).and_hms(12, 34, 56),
                 folder_id: "ABCD1234-1AB2-3CDE-456F-789AB0CD1E2F".to_owned(),

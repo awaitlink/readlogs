@@ -20,16 +20,18 @@ pub struct LogEntryMetadata {
     pub symbol: String,
 }
 
-fn level(input: &str) -> IResult<&str, LogLevel> {
-    map(is_a("💙💚💛🧡❤️"), |heart: &str| {
+#[traceable_parser]
+fn level(input: Span) -> IResult<Span, LogLevel> {
+    map(is_a("💙💚💛🧡❤️"), |heart: Span| {
         heart.parse().unwrap()
     })(input)
 }
 
 type Metadata = (DateTime<Utc>, Option<LogLevel>, Option<LogEntryMetadata>);
 
-fn metadata(input: &str) -> IResult<&str, Metadata> {
-    let verifier = |s: &str| !s.contains('\n');
+#[traceable_parser]
+fn metadata(input: Span) -> IResult<Span, Metadata> {
+    let verifier = |s: &Span| !s.contains('\n');
 
     let (remainder, (dt, _, lvl, meta)) = tuple((
         common::naive_date_time(None, "/", " ", ":", Some(":"), None),
@@ -55,15 +57,16 @@ fn metadata(input: &str) -> IResult<&str, Metadata> {
             DateTime::<Utc>::from_utc(dt, Utc),
             lvl,
             meta.map(|(_, file, _, line, _, symbol, _)| LogEntryMetadata {
-                file: file.to_owned(),
-                line: line.to_owned(),
-                symbol: symbol.to_owned(),
+                file: file.fragment().to_string(),
+                line: line.fragment().to_string(),
+                symbol: symbol.fragment().to_string(),
             }),
         ),
     ))
 }
 
-fn log_entry(input: &str) -> IResult<&str, LogEntry> {
+#[traceable_parser]
+fn log_entry(input: Span) -> IResult<Span, LogEntry> {
     map(
         tuple((metadata, space0, common::message(metadata))),
         |((dt, lvl, meta), _, message)| LogEntry {
@@ -75,7 +78,8 @@ fn log_entry(input: &str) -> IResult<&str, LogEntry> {
     )(input)
 }
 
-pub fn content(input: &str) -> IResult<&str, Content> {
+#[traceable_parser]
+pub fn content(input: Span) -> IResult<Span, Content> {
     preceded(
         multispace0,
         map(many0(log_entry), |logs| Content {
@@ -94,7 +98,7 @@ mod tests {
     use test_case::test_case;
 
     use super::*;
-    use crate::parsing_test;
+    use crate::test_parsing;
 
     fn test_timestamp(milliseconds: u32) -> DateTime<Utc> {
         Utc.ymd(1234, 1, 23).and_hms_milli(12, 34, 56, milliseconds)
@@ -123,22 +127,22 @@ mod tests {
     }
 
     #[test_case(
-        "1234/01/23 12:34:56:789 💚 [Item.abc:123 -[Item handleSomething]]:" =>
+        "1234/01/23 12:34:56:789 💚 [Item.abc:123 -[Item handleSomething]]:",
         (test_timestamp(789), Some(LogLevel::Debug), test_metadata(123));
         "basic"
     )]
     #[test_case(
-        "1234/01/23 12:34:56:789      ❤️   [Item.abc:123 -[Item handleSomething]]:" =>
+        "1234/01/23 12:34:56:789      ❤️   [Item.abc:123 -[Item handleSomething]]:",
         (test_timestamp(789), Some(LogLevel::Error), test_metadata(123));
         "multiple spaces"
     )]
     #[test_case(
-        "1234/01/23 12:34:56:789 💛 [Item.abc:123 -[Item handleSomething]] " =>
+        "1234/01/23 12:34:56:789 💛 [Item.abc:123 -[Item handleSomething]] ",
         (test_timestamp(789), Some(LogLevel::Info), test_metadata(123));
         "meta does not have colon at the end"
     )]
     #[test_case(
-        "1234/01/23 12:34:56:789 💛 [path/to/item.abc:123] " =>
+        "1234/01/23 12:34:56:789 💛 [path/to/item.abc:123] ",
         (test_timestamp(789), Some(LogLevel::Info), Some(LogEntryMetadata {
             file: "path/to/item.abc".to_owned(),
             line: "123".to_owned(),
@@ -147,86 +151,82 @@ mod tests {
         "meta does not have colon at the end and does not have symbol"
     )]
     #[test_case(
-        "1234/01/23 12:34:56:789" =>
+        "1234/01/23 12:34:56:789",
         (test_timestamp(789), None, None);
         "no log level, no meta"
     )]
-    fn metadata_ok(input: &str) -> Metadata {
-        parsing_test(metadata, input)
+    fn metadata_ok(input: &str, output: Metadata) {
+        test_parsing(metadata, input, "", output);
     }
 
     #[test_case(
-        "Debug message\n1234/01/23 12:34:56:789 💛 Another message..." =>
-        ("1234/01/23 12:34:56:789 💛 Another message...", "Debug message".to_owned());
+        "Debug message\n1234/01/23 12:34:56:789 💛 Another message...",
+        "1234/01/23 12:34:56:789 💛 Another message...", "Debug message".to_owned();
         "single line, more remain"
     )]
     #[test_case(
-        "Debug message\n1234/01/23 12:34:56:789  Another message..." =>
-        ("1234/01/23 12:34:56:789  Another message...", "Debug message".to_owned());
+        "Debug message\n1234/01/23 12:34:56:789  Another message...",
+        "1234/01/23 12:34:56:789  Another message...", "Debug message".to_owned();
         "single line, more remain, but no log level"
     )]
     #[test_case(
-        "Debug message" =>
-        ("", "Debug message".to_owned());
+        "Debug message",
+        "", "Debug message".to_owned();
         "single line, no more remain"
     )]
     #[test_case(
-        "Debug message\n" =>
-        ("", "Debug message".to_owned());
+        "Debug message\n",
+        "", "Debug message".to_owned();
         "single line, no more remain, trailing newline"
     )]
     #[test_case(
-        "Debug message that spans\nmultiple lines {\n\ta: b,\n\tc: d,\n}\n1234/01/23 12:34:56:789 💛 Another message..." =>
-        ("1234/01/23 12:34:56:789 💛 Another message...", "Debug message that spans\nmultiple lines {\n\ta: b,\n\tc: d,\n}".to_owned());
+        "Debug message that spans\nmultiple lines {\n\ta: b,\n\tc: d,\n}\n1234/01/23 12:34:56:789 💛 Another message...",
+        "1234/01/23 12:34:56:789 💛 Another message...", "Debug message that spans\nmultiple lines {\n\ta: b,\n\tc: d,\n}".to_owned();
         "multiline, more remain"
     )]
     #[test_case(
-        "Debug message that spans\nmultiple lines {\n\ta: b,\n\tc: d,\n}" =>
-        ("", "Debug message that spans\nmultiple lines {\n\ta: b,\n\tc: d,\n}".to_owned());
+        "Debug message that spans\nmultiple lines {\n\ta: b,\n\tc: d,\n}",
+        "", "Debug message that spans\nmultiple lines {\n\ta: b,\n\tc: d,\n}".to_owned();
         "multiline, no more remain"
     )]
     #[test_case(
-        "Debug message that spans\nmultiple lines {\n\ta: b,\n\tc: d,\n}\n" =>
-        ("", "Debug message that spans\nmultiple lines {\n\ta: b,\n\tc: d,\n}".to_owned());
+        "Debug message that spans\nmultiple lines {\n\ta: b,\n\tc: d,\n}\n",
+        "", "Debug message that spans\nmultiple lines {\n\ta: b,\n\tc: d,\n}".to_owned();
         "multiline, no more remain, trailing newline"
     )]
-    fn message_ok(input: &str) -> (&str, String) {
-        common::message(metadata)(input).unwrap()
+    fn message_ok(input: &str, remainder: &str, output: String) {
+        test_parsing(common::message(metadata), input, remainder, output);
     }
 
     #[test_case(
-        "1234/01/23 12:34:56:789 💚 [Item.abc:123 -[Item handleSomething]]: Debug message\n1234/01/23 12:34:56:789 💛 [Item.abc:123 -[Item handleSomething]]: Another message..." =>
-        (
-            "1234/01/23 12:34:56:789 💛 [Item.abc:123 -[Item handleSomething]]: Another message...",
-            test_log_message(789, Some(LogLevel::Debug), test_metadata(123), "Debug message"),
-        );
+        "1234/01/23 12:34:56:789 💚 [Item.abc:123 -[Item handleSomething]]: Debug message\n1234/01/23 12:34:56:789 💛 [Item.abc:123 -[Item handleSomething]]: Another message...",
+        "1234/01/23 12:34:56:789 💛 [Item.abc:123 -[Item handleSomething]]: Another message...",
+        test_log_message(789, Some(LogLevel::Debug), test_metadata(123), "Debug message");
         "single line, more remain"
     )]
     #[test_case(
-        "1234/01/23 12:34:56:789 💚 [Item.abc:123 -[Item handleSomething]]: Debug message that spans\nmultiple lines {\n\ta: b,\n\tc: d,\n}\n1234/01/23 12:34:56:789 💛 Another message..." =>
-        (
-            "1234/01/23 12:34:56:789 💛 Another message...",
-            test_log_message(789, Some(LogLevel::Debug), test_metadata(123), "Debug message that spans\nmultiple lines {\n\ta: b,\n\tc: d,\n}"),
-        );
+        "1234/01/23 12:34:56:789 💚 [Item.abc:123 -[Item handleSomething]]: Debug message that spans\nmultiple lines {\n\ta: b,\n\tc: d,\n}\n1234/01/23 12:34:56:789 💛 Another message...",
+        "1234/01/23 12:34:56:789 💛 Another message...",
+        test_log_message(789, Some(LogLevel::Debug), test_metadata(123), "Debug message that spans\nmultiple lines {\n\ta: b,\n\tc: d,\n}");
         "multiline, more remain"
     )]
     #[test_case(
-        "1234/01/23 12:34:56:123  ❤️ [Item.abc:123 -[Item handleSomething]]: Test 1\n1234/01/23 12:34:56:789  -[Abc def]:123 test" =>
-        ("1234/01/23 12:34:56:789  -[Abc def]:123 test", test_log_message(123, Some(LogLevel::Error), test_metadata(123), "Test 1"));
+        "1234/01/23 12:34:56:123  ❤️ [Item.abc:123 -[Item handleSomething]]: Test 1\n1234/01/23 12:34:56:789  -[Abc def]:123 test",
+        "1234/01/23 12:34:56:789  -[Abc def]:123 test", test_log_message(123, Some(LogLevel::Error), test_metadata(123), "Test 1");
         "next has no meta"
     )]
     #[test_case(
-        "1234/01/23 12:34:56:789  Just a message.\n1234/01/23 12:34:56:987  💚 Next message" =>
-        ("1234/01/23 12:34:56:987  💚 Next message", test_log_message(789, None, None, "Just a message."));
+        "1234/01/23 12:34:56:789  Just a message.\n1234/01/23 12:34:56:987  💚 Next message",
+        "1234/01/23 12:34:56:987  💚 Next message", test_log_message(789, None, None, "Just a message.");
         "no meta"
     )]
     #[test_case(
-        "1234/01/23 12:34:56:789  ❤️ [Item.abc:123 -[Item handleSomething]]: \n1234/01/23 12:34:56:987  💚 Next message" =>
-        ("1234/01/23 12:34:56:987  💚 Next message", test_log_message(789, Some(LogLevel::Error), test_metadata(123), ""));
+        "1234/01/23 12:34:56:789  ❤️ [Item.abc:123 -[Item handleSomething]]: \n1234/01/23 12:34:56:987  💚 Next message",
+        "1234/01/23 12:34:56:987  💚 Next message", test_log_message(789, Some(LogLevel::Error), test_metadata(123), "");
         "no message"
     )]
-    fn log_entry_ok(input: &str) -> (&str, LogEntry) {
-        log_entry(input).unwrap()
+    fn log_entry_ok(input: &str, remainder: &str, output: LogEntry) {
+        test_parsing(log_entry, input, remainder, output)
     }
 
     #[test_case(
@@ -255,10 +255,10 @@ mod tests {
         "no log level in the middle"
     )]
     fn content_ok(input: &str, output: Vec<LogEntry>) {
-        let (remainder, result) = content(input).unwrap();
-        assert_eq!(remainder, "", "remainder should be empty");
-        assert_eq!(
-            result,
+        test_parsing(
+            content,
+            input,
+            "",
             Content {
                 information: vec![],
                 logs: vec![Section {
@@ -266,7 +266,7 @@ mod tests {
                     content: output,
                     subsections: vec![],
                 }],
-            }
-        );
+            },
+        )
     }
 }

@@ -1,9 +1,9 @@
 use derive_more::Display;
 use strum_macros::{EnumIter, EnumString};
 use yew::prelude::*;
+use LogLevel::*;
 
 use crate::Platform::{self, *};
-use LogLevel::*;
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Hash, EnumString, EnumIter)]
 #[strum(ascii_case_insensitive)]

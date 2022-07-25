@@ -1,6 +1,4 @@
-use std::rc::Rc;
-
-use std::convert::identity;
+use std::{convert::identity, rc::Rc};
 
 use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
 use wasm_bindgen::JsCast;

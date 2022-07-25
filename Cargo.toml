@@ -7,16 +7,17 @@ license = "MIT"
 publish = false
 build = "build.rs"
 
-[profile.release]
-panic = 'abort'
-codegen-units = 1
-lto = true
+[features]
+default = []
+trace = ["nom-tracable/trace"]
 
 [dependencies]
 yew = "0.19"
 yewtil = "0.4"
 anyhow = "1.0"
 nom = "7.1"
+nom_locate = "4.0"
+nom-tracable = "0.8"
 derive_more = "0.99"
 strum = "0.21"
 strum_macros = "0.21"
@@ -29,7 +30,13 @@ reqwasm = "0.3"
 
 [dev-dependencies]
 test-case = "1.2"
+pretty_assertions = "1.2"
 
 [build-dependencies]
 anyhow = "1.0"
 vergen = { version = "5.1", default-features = false, features = ["git"] }
+
+[profile.release]
+panic = 'abort'
+codegen-units = 1
+lto = true

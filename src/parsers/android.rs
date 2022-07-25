@@ -8,7 +8,7 @@ use nom::{
     IResult,
 };
 
-use crate::{parsers::*, post_processing, remote_object};
+use crate::{parsers::*, post_processing, remote_object, traceable_configurable_parser};
 
 const LOGCAT_SECTION_NAME: &str = "LOGCAT";
 const LOGGER_SECTION_NAME: &str = "LOGGER";
@@ -19,18 +19,29 @@ enum SectionLevel {
     Sub,
 }
 
-fn subsection_header(input: &str) -> IResult<&str, &str> {
-    preceded(pair(many1(tag("-")), tag(" ")), is_not("\n"))(input)
-}
-
-fn thread(input: &str) -> IResult<&str, InfoEntry> {
+#[traceable_parser]
+fn subsection_header(input: Span) -> IResult<Span, &str> {
     map(
-        separated_pair(delimited(tag("["), digit1, tag("]")), space1, is_not("\n")),
-        |(n, s): (&str, &str)| InfoEntry::KeyValue(n.to_owned(), Value::Generic(s.to_owned())),
+        preceded(pair(many1(tag("-")), tag(" ")), is_not("\n")),
+        |span: Span| *span.fragment(),
     )(input)
 }
 
-fn jobs_inline_section(input: &str) -> IResult<&str, Section<InfoEntry>> {
+#[traceable_parser]
+fn thread(input: Span) -> IResult<Span, InfoEntry> {
+    map(
+        separated_pair(delimited(tag("["), digit1, tag("]")), space1, is_not("\n")),
+        |(n, s): (Span, Span)| {
+            InfoEntry::KeyValue(
+                n.fragment().to_string(),
+                Value::Generic(s.fragment().to_string()),
+            )
+        },
+    )(input)
+}
+
+#[traceable_parser]
+fn jobs_inline_section(input: Span) -> IResult<Span, Section<InfoEntry>> {
     map(
         separated_pair(
             preceded(alt((tag("id: "), tag("jobSpecId: "))), is_not(" ")),
@@ -41,14 +52,14 @@ fn jobs_inline_section(input: &str) -> IResult<&str, Section<InfoEntry>> {
             ),
         ),
         |(name, pairs)| Section {
-            name: name.to_owned(),
+            name: name.fragment().to_string(),
             content: pairs,
             subsections: vec![],
         },
     )(input)
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum IndentedSectionType {
     LocalMetrics,
     NotificationProfiles,
@@ -107,9 +118,7 @@ impl IndentedSectionType {
     }
 }
 
-fn indented_subsection<'a>(
-    ty: IndentedSectionType,
-) -> impl FnMut(&'a str) -> IResult<&'a str, Section<InfoEntry>> {
+traceable_configurable_parser!(fn indented_subsection<'a>(ty: IndentedSectionType) -> Section<InfoEntry>: |input| {
     map(
         tuple((
             is_not("\n"),
@@ -124,19 +133,19 @@ fn indented_subsection<'a>(
             ),
         )),
         |(name, content)| Section {
-            name: name.to_owned(),
+            name: name.fragment().to_string(),
             content,
             subsections: vec![],
         },
-    )
-}
+    )(input)
+});
 
-fn subsection_with_indented_subsections<'a>(
+traceable_configurable_parser!(fn subsection_with_indented_subsections<'a>(
     raw_name: &'a str,
     name: &'a str,
     explicit_none: &'a str,
     ty: IndentedSectionType,
-) -> impl FnMut(&'a str) -> IResult<&'a str, Vec<Section<InfoEntry>>> {
+) -> Vec<Section<InfoEntry>>: |input| {
     preceded(
         common::multispaced0(tag(raw_name)),
         map(
@@ -155,12 +164,10 @@ fn subsection_with_indented_subsections<'a>(
                 }]
             },
         ),
-    )
-}
+    )(input)
+});
 
-fn section_with_indented_subsections<'a>(
-    ty: IndentedSectionType,
-) -> impl FnMut(&'a str) -> IResult<&'a str, Section<InfoEntry>> {
+traceable_configurable_parser!(fn section_with_indented_subsections<'a>(ty: IndentedSectionType) -> Section<InfoEntry>: |input| {
     map(
         tuple((
             is_not("\n"),
@@ -176,20 +183,21 @@ fn section_with_indented_subsections<'a>(
             many0(common::multispaced0(indented_subsection(ty))),
         )),
         |(name, content, subsections)| Section {
-            name: name.to_owned(),
+            name: name.fragment().to_string(),
             content,
             subsections,
         },
-    )
-}
+    )(input)
+});
 
-fn generic_table(input: &str) -> IResult<&str, GenericTable> {
+#[traceable_parser]
+fn generic_table(input: Span) -> IResult<Span, GenericTable> {
     let row = |input| {
         delimited(
             tag("|"),
             map(
                 separated_list1(tag("|"), is_not("|\n")),
-                |items: Vec<&str>| {
+                |items: Vec<Span>| {
                     items
                         .iter()
                         .map(|s| s.trim().to_owned())
@@ -210,137 +218,134 @@ fn generic_table(input: &str) -> IResult<&str, GenericTable> {
     )(input)
 }
 
-fn info_section(depth: SectionLevel) -> impl FnMut(&str) -> IResult<&str, Section<InfoEntry>> {
-    move |input| {
-        let section_header_parser = match depth {
-            SectionLevel::Base => common::section_header,
-            SectionLevel::Sub => subsection_header,
-        };
+traceable_configurable_parser!(fn info_section<'a>(depth: SectionLevel) -> Section<InfoEntry>: |input| {
+    let section_header_parser = match depth {
+        SectionLevel::Base => common::section_header,
+        SectionLevel::Sub => subsection_header,
+    };
 
-        let (remainder, name) = verify(
-            delimited(multispace0, section_header_parser, opt(newline)),
-            |name: &str| name != LOGCAT_SECTION_NAME && name != LOGGER_SECTION_NAME,
-        )(input)?;
+    let (remainder, name) = verify(
+        delimited(multispace0, section_header_parser, opt(newline)),
+        |name: &str| name != LOGCAT_SECTION_NAME && name != LOGGER_SECTION_NAME,
+    )(input)?;
 
-        let (remainder, content) = alt((
-            preceded(
-                peek(not(jobs_inline_section)),
-                common::multispaced0(alt((
-                    map(generic_table, |table| vec![InfoEntry::GenericTable(table)]),
-                    many1(common::multispaced0(common::key_maybe_enabled_value)),
-                    many1(common::multispaced0(thread)),
-                    map(remote_object, |ro| vec![InfoEntry::RemoteObject(ro)]),
-                    value(vec![InfoEntry::ExplicitNone], tag("None")),
-                    many1(common::multispaced0(map(
-                        preceded(
-                            peek(not(alt((
-                                section_with_indented_subsections(LocalMetrics),
-                                section_with_indented_subsections(NotificationProfiles),
-                                // section_with_indented_subsections(OwnershipInfo), // TODO: Investigate, it causes parsers::android::tests::info_section_ok::blocked_threads failure
-                            )))),
-                            is_not("\n-="),
-                        ),
-                        |s: &str| InfoEntry::Generic(s.to_owned()),
-                    ))),
+    let (remainder, content) = alt((
+        preceded(
+            peek(not(jobs_inline_section)),
+            common::multispaced0(alt((
+                map(generic_table, |table| vec![InfoEntry::GenericTable(table)]),
+                many1(common::multispaced0(common::key_maybe_enabled_value)),
+                many1(common::multispaced0(thread)),
+                map(remote_object, |ro| vec![InfoEntry::RemoteObject(ro)]),
+                value(vec![InfoEntry::ExplicitNone], tag("None")),
+                many1(common::multispaced0(map(
+                    preceded(
+                        peek(not(alt((
+                            section_with_indented_subsections(LocalMetrics),
+                            section_with_indented_subsections(NotificationProfiles),
+                            // section_with_indented_subsections(OwnershipInfo), // TODO: Investigate, it causes parsers::android::tests::info_section_ok::blocked_threads failure
+                        )))),
+                        is_not("\n-="),
+                    ),
+                    |s: Span| InfoEntry::Generic(s.fragment().to_string()),
                 ))),
+            ))),
+        ),
+        success(vec![]),
+    ))(remainder)?;
+
+    let (remainder, subsections) = match depth {
+        SectionLevel::Base => alt((
+            many1(info_section(SectionLevel::Sub)),
+            many1(common::multispaced0(section_with_indented_subsections(
+                LocalMetrics,
+            ))),
+            subsection_with_indented_subsections(
+                "Profiles:",
+                "Profiles",
+                "No notification profiles",
+                NotificationProfiles,
+            ),
+            subsection_with_indented_subsections(
+                "Ownership Info:",
+                "Ownership Info",
+                "No ownership info to display.",
+                OwnershipInfo,
             ),
             success(vec![]),
-        ))(remainder)?;
+        ))(remainder)?,
+        SectionLevel::Sub => many0(common::multispaced0(jobs_inline_section))(remainder)?,
+    };
 
-        let (remainder, subsections) = match depth {
-            SectionLevel::Base => alt((
-                many1(info_section(SectionLevel::Sub)),
-                many1(common::multispaced0(section_with_indented_subsections(
-                    LocalMetrics,
-                ))),
-                subsection_with_indented_subsections(
-                    "Profiles:",
-                    "Profiles",
-                    "No notification profiles",
-                    NotificationProfiles,
-                ),
-                subsection_with_indented_subsections(
-                    "Ownership Info:",
-                    "Ownership Info",
-                    "No ownership info to display.",
-                    OwnershipInfo,
-                ),
-                success(vec![]),
-            ))(remainder)?,
-            SectionLevel::Sub => many0(common::multispaced0(jobs_inline_section))(remainder)?,
-        };
+    Ok((
+        remainder,
+        Section {
+            name: name.to_owned(),
+            content,
+            subsections,
+        },
+    ))
+});
 
-        Ok((
-            remainder,
-            Section {
-                name: name.to_owned(),
-                content,
+traceable_configurable_parser!(fn logcat_entry<'a>(year: i32) -> LogEntry: |input| {
+    map(
+        tuple((
+            common::naive_date_time(Some(year), "-", " ", ":", Some("."), None),
+            space0,
+            is_not(" "),
+            space0,
+            is_not(" "),
+            space0,
+            is_a("VDIWEF"),
+            space0,
+            alt((
+                verify(terminated(take_until(": "), tag(": ")), |span: &Span| !span.contains('\n')),
+                terminated(take_until(" "), tag(" ")),
+            )),
+            space0,
+            alt((is_not("\n"), success(span("")))),
+        )),
+        |(dt, _, process_id, _, thread_id, _, level, _, tag, _, message)| LogEntry {
+            timestamp: dt.to_string(),
+            level: Some(level.parse().unwrap()),
+            meta: PlatformMetadata::AndroidLogcat {
+                process_id: process_id.fragment().to_string(),
+                thread_id: thread_id.fragment().to_string(),
+                tag: tag.trim().to_owned(),
+            },
+            message: message.fragment().to_string(),
+        },
+    )(input)
+});
+
+traceable_configurable_parser!(fn logcat_section<'a>(year: i32) -> Section<LogEntry>: |input| {
+    preceded(
+        common::multispaced0(verify(common::section_header, |name: &str| {
+            name == LOGCAT_SECTION_NAME
+        })),
+        map(
+            many0(map(
+                pair(
+                    common::multispaced0(subsection_header),
+                    many0(common::multispaced0(logcat_entry(year))),
+                ),
+                |(name, content)| Section {
+                    name: name.to_owned(),
+                    content: post_processing::collapse_log_entries(content),
+                    subsections: vec![],
+                },
+            )),
+            |subsections| Section {
+                name: LOGCAT_SECTION_NAME.to_owned(),
+                content: vec![],
                 subsections,
             },
-        ))
-    }
-}
+        ),
+    )(input)
+});
 
-fn logcat_entry(year: i32) -> impl FnMut(&str) -> IResult<&str, LogEntry> {
-    move |input| {
-        map(
-            tuple((
-                common::naive_date_time(Some(year), "-", " ", ":", Some("."), None),
-                space0,
-                is_not(" "),
-                space0,
-                is_not(" "),
-                space0,
-                is_a("VDIWEF"),
-                space0,
-                take_until(": "),
-                tag(": "),
-                space0,
-                alt((is_not("\n"), success(""))),
-            )),
-            |(dt, _, process_id, _, thread_id, _, level, _, tag, _, _, message)| LogEntry {
-                timestamp: dt.to_string(),
-                level: Some(level.parse().unwrap()),
-                meta: PlatformMetadata::AndroidLogcat {
-                    process_id: process_id.to_owned(),
-                    thread_id: thread_id.to_owned(),
-                    tag: tag.trim().to_owned(),
-                },
-                message: message.to_owned(),
-            },
-        )(input)
-    }
-}
-
-fn logcat_section(year: i32) -> impl FnMut(&str) -> IResult<&str, Section<LogEntry>> {
-    move |input| {
-        preceded(
-            common::multispaced0(verify(common::section_header, |name: &str| {
-                name == LOGCAT_SECTION_NAME
-            })),
-            map(
-                many0(map(
-                    pair(
-                        common::multispaced0(subsection_header),
-                        many0(common::multispaced0(logcat_entry(year))),
-                    ),
-                    |(name, content)| Section {
-                        name: name.to_owned(),
-                        content: post_processing::collapse_log_entries(content),
-                        subsections: vec![],
-                    },
-                )),
-                |subsections| Section {
-                    name: LOGCAT_SECTION_NAME.to_owned(),
-                    content: vec![],
-                    subsections,
-                },
-            ),
-        )(input)
-    }
-}
-
-fn logger_metadata(input: &str) -> IResult<&str, (PlatformMetadata, String, LogLevel)> {
+#[traceable_parser]
+fn logger_metadata(input: Span) -> IResult<Span, (PlatformMetadata, String, LogLevel)> {
     enum LoggerTimezone<'a> {
         Parsed(FixedOffset),
         Unparsed(&'a str),
@@ -357,7 +362,9 @@ fn logger_metadata(input: &str) -> IResult<&str, (PlatformMetadata, String, LogL
             )),
             |(_, pm, h, _, m)| LoggerTimezone::Parsed(FixedOffset::east((h * 60 + m) * 60 * pm)),
         ),
-        map(take_until(" "), LoggerTimezone::Unparsed),
+        map(take_until(" "), |span: Span| {
+            LoggerTimezone::Unparsed(span.fragment())
+        }),
     ));
 
     map(
@@ -378,7 +385,7 @@ fn logger_metadata(input: &str) -> IResult<&str, (PlatformMetadata, String, LogL
         |(version, _, thread_id, _, dt, _, tz, _, level, _, tag, _)| {
             (
                 PlatformMetadata::AndroidLogger {
-                    version: version.to_owned(),
+                    version: version.fragment().to_string(),
                     thread_id: thread_id.trim().to_owned(),
                     tag: tag.trim().to_owned(),
                 },
@@ -392,7 +399,8 @@ fn logger_metadata(input: &str) -> IResult<&str, (PlatformMetadata, String, LogL
     )(input)
 }
 
-fn logger_entry(input: &str) -> IResult<&str, LogEntry> {
+#[traceable_parser]
+fn logger_entry(input: Span) -> IResult<Span, LogEntry> {
     map(
         separated_pair(logger_metadata, space0, common::message(logger_metadata)),
         |((meta, timestamp, level), message)| LogEntry {
@@ -404,7 +412,8 @@ fn logger_entry(input: &str) -> IResult<&str, LogEntry> {
     )(input)
 }
 
-pub fn content(input: &str) -> IResult<&str, Content> {
+#[traceable_parser]
+pub fn content(input: Span) -> IResult<Span, Content> {
     let (remainder, (information, logcat_section, _, mut logger_entries)) = tuple((
         preceded(multispace0, many0(info_section(SectionLevel::Base))),
         preceded(multispace0, logcat_section(Utc::today().year())), // TODO: year...
@@ -437,17 +446,16 @@ mod tests {
     use test_case::test_case;
 
     use super::*;
-    use crate::parsing_test;
+    use crate::{test_parsing, test_parsing_err_or_remainder};
 
-    #[test_case("-- Abc" => "Abc"; "basic")]
-    #[test_case("--------- Long line" => "Long line"; "long")]
-    fn subsection_header_ok(input: &str) -> &str {
-        parsing_test(subsection_header, input)
+    #[test_case("-- Abc", "Abc"; "basic")]
+    #[test_case("--------- Long line", "Long line"; "long")]
+    fn subsection_header_ok(input: &str, output: &str) {
+        test_parsing(subsection_header, input, "", output);
     }
 
     #[test_case(
-        "id: JOB::abcd1234-efgh-5678-ijkl-9012mnop1234 | a: TestJob | b: _test_value_ | number: 123 | negative: -1"
-        => Section {
+        "id: JOB::abcd1234-efgh-5678-ijkl-9012mnop1234 | a: TestJob | b: _test_value_ | number: 123 | negative: -1", Section {
             name: "JOB::abcd1234-efgh-5678-ijkl-9012mnop1234".to_owned(),
             content: vec![
                 InfoEntry::KeyValue("a".to_owned(), Value::Generic("TestJob".to_owned())),
@@ -460,8 +468,7 @@ mod tests {
         "job"
     )]
     #[test_case(
-        "jobSpecId: JOB::abcd1234-efgh-5678-ijkl-9012mnop1234 | a: TestConstraint | anotherValue: false"
-        => Section {
+        "jobSpecId: JOB::abcd1234-efgh-5678-ijkl-9012mnop1234 | a: TestConstraint | anotherValue: false", Section {
             name: "JOB::abcd1234-efgh-5678-ijkl-9012mnop1234".to_owned(),
             content: vec![
                 InfoEntry::KeyValue("a".to_owned(), Value::Generic("TestConstraint".to_owned())),
@@ -471,12 +478,12 @@ mod tests {
         };
         "constraint"
     )]
-    fn jobs_inline_section_ok(input: &str) -> Section<InfoEntry> {
-        parsing_test(jobs_inline_section, input)
+    fn jobs_inline_section_ok(input: &str, output: Section<InfoEntry>) {
+        test_parsing(jobs_inline_section, input, "", output);
     }
 
     #[test_case(
-        "========= HEADER =========\nTime          : 1234567890123\nDays Installed: 123\nself.isRegistered()  : true" =>
+        "========= HEADER =========\nTime          : 1234567890123\nDays Installed: 123\nself.isRegistered()  : true",
         Section {
             name: "HEADER".to_owned(),
             content: vec![
@@ -488,7 +495,7 @@ mod tests {
         }; "sysinfo, constraints, key preferences, permissions"
     )]
     #[test_case(
-        "========== JOBS ===========\n-- Jobs\nid: JOB::abcd1234-efgh-5678-ijkl-9012mnop1234 | a: TestJob | b: _test_value_ | number: 123 | negative: -1\n\n-- Constraints\njobSpecId: JOB::abcd1234-efgh-5678-ijkl-9012mnop1234 | a: TestConstraint | anotherValue: false\n\n-- Dependencies\nNone" =>
+        "========== JOBS ===========\n-- Jobs\nid: JOB::abcd1234-efgh-5678-ijkl-9012mnop1234 | a: TestJob | b: _test_value_ | number: 123 | negative: -1\n\n-- Constraints\njobSpecId: JOB::abcd1234-efgh-5678-ijkl-9012mnop1234 | a: TestConstraint | anotherValue: false\n\n-- Dependencies\nNone",
         Section {
             name: "JOBS".to_owned(),
             content: vec![],
@@ -528,7 +535,7 @@ mod tests {
         }; "jobs"
     )]
     #[test_case(
-        "====== HEADER =======\n-- Abc\nABC123          : true\nCapability Name : false\n\n-- Def\nABC123          : SUPPORTED\nCapability Name : NOT_SUPPORTED\nexample.testFlag: 1:2,3:4,*:5" =>
+        "====== HEADER =======\n-- Abc\nABC123          : true\nCapability Name : false\n\n-- Def\nABC123          : SUPPORTED\nCapability Name : NOT_SUPPORTED\nexample.testFlag: 1:2,3:4,*:5",
         Section {
             name: "HEADER".to_owned(),
             content: vec![],
@@ -558,7 +565,7 @@ mod tests {
         }; "capabilities, feature flags"
     )]
     #[test_case(
-        "====== LOCAL METRICS ======\ncold-start-conversation-list\n  count: 5\n  p50: 3456\n  p90: 4567\n  p99: 4567\n    application-create\n      p50: 123\n      p90: 456\n      p99: 456\n    data-loaded\n      p50: 456\n      p90: 789\n      p99: 789\n\n\nconversation-open\n  count: 123\n  p50: 1234\n  p90: 5678\n  p99: 12345" =>
+        "====== LOCAL METRICS ======\ncold-start-conversation-list\n  count: 5\n  p50: 3456\n  p90: 4567\n  p99: 4567\n    application-create\n      p50: 123\n      p90: 456\n      p99: 456\n    data-loaded\n      p50: 456\n      p90: 789\n      p99: 789\n\n\nconversation-open\n  count: 123\n  p50: 1234\n  p90: 5678\n  p99: 12345",
         Section {
             name: "LOCAL METRICS".to_owned(),
             content: vec![],
@@ -606,7 +613,7 @@ mod tests {
         }; "local metrics"
     )]
     #[test_case(
-        "======== PIN STATE ========\nKey: abc_def_ghi\nTest Value: 1234567890\nAbcDef: true" =>
+        "======== PIN STATE ========\nKey: abc_def_ghi\nTest Value: 1234567890\nAbcDef: true",
         Section {
             name: "PIN STATE".to_owned(),
             content: vec![
@@ -618,7 +625,7 @@ mod tests {
         }; "pin state (does not have space-alignment)"
     )]
     #[test_case(
-        "========== POWER ==========\nCurrent bucket: Frequent\nHighest bucket: Active\nLowest bucket : Rare\n\nMon Jan 23 12:34:56 GMT+01:00 1234: Bucket Change: Active\nMon Jan 23 12:34:57 GMT+01:00 1234: Bucket Change: Rare\nMon Jan 23 12:34:58 GMT+01:00 1234: Bucket Change: Frequent" =>
+        "========== POWER ==========\nCurrent bucket: Frequent\nHighest bucket: Active\nLowest bucket : Rare\n\nMon Jan 23 12:34:56 GMT+01:00 1234: Bucket Change: Active\nMon Jan 23 12:34:57 GMT+01:00 1234: Bucket Change: Rare\nMon Jan 23 12:34:58 GMT+01:00 1234: Bucket Change: Frequent",
         Section {
             name: "POWER".to_owned(),
             content: vec![
@@ -633,7 +640,7 @@ mod tests {
         }; "power"
     )]
     #[test_case(
-        "====== NOTIFICATIONS ======\nTest key        : true\nAnother test key: false\n\n-- abc_def_v2\ntest       : LOW (2)\nanotherTest: N/A (Requires API 30)\n\n-- abc_def : 123\ntest       : value" =>
+        "====== NOTIFICATIONS ======\nTest key        : true\nAnother test key: false\n\n-- abc_def_v2\ntest       : LOW (2)\nanotherTest: N/A (Requires API 30)\n\n-- abc_def : 123\ntest       : value",
         Section {
             name: "NOTIFICATIONS".to_owned(),
             content: vec![
@@ -660,7 +667,7 @@ mod tests {
         }; "notifications"
     )]
     #[test_case(
-        "===== NOTIFICATION PROFILES =====\nManually enabled profile: 0\nManually enabled until  : 0\nManually disabled at    : 1234567890123\nNow                     : 1234567890321\n\nProfiles:\n    Profile 1\n    allowMentions   : false\n    allowCalls      : false\n    schedule enabled: false\n    schedule start  : 900\n    schedule end    : 2100\n    schedule days   : [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY]" =>
+        "===== NOTIFICATION PROFILES =====\nManually enabled profile: 0\nManually enabled until  : 0\nManually disabled at    : 1234567890123\nNow                     : 1234567890321\n\nProfiles:\n    Profile 1\n    allowMentions   : false\n    allowCalls      : false\n    schedule enabled: false\n    schedule start  : 900\n    schedule end    : 2100\n    schedule days   : [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY]",
         Section {
             name: "NOTIFICATION PROFILES".to_owned(),
             content: vec![
@@ -692,7 +699,7 @@ mod tests {
         }; "notification profiles"
     )]
     #[test_case(
-        "===== NOTIFICATION PROFILES =====\nManually enabled profile: 0\nManually enabled until  : 0\nManually disabled at    : 1234567890123\nNow                     : 1234567890321\n\nProfiles:\n    No notification profiles" =>
+        "===== NOTIFICATION PROFILES =====\nManually enabled profile: 0\nManually enabled until  : 0\nManually disabled at    : 1234567890123\nNow                     : 1234567890321\n\nProfiles:\n    No notification profiles",
         Section {
             name: "NOTIFICATION PROFILES".to_owned(),
             content: vec![
@@ -711,7 +718,7 @@ mod tests {
         }; "notification profiles empty"
     )]
     #[test_case(
-        "======== EXOPLAYER POOL =========\nTotal players created: 0\nMax allowed unreserved instances: 12\nMax allowed reserved instances: 1\nAvailable created unreserved instances: 0\nAvailable created reserved instances: 0\nTotal unreserved created: 0\nTotal reserved created: 0\n\nOwnership Info:\n  No ownership info to display." =>
+        "======== EXOPLAYER POOL =========\nTotal players created: 0\nMax allowed unreserved instances: 12\nMax allowed reserved instances: 1\nAvailable created unreserved instances: 0\nAvailable created reserved instances: 0\nTotal unreserved created: 0\nTotal reserved created: 0\n\nOwnership Info:\n  No ownership info to display.",
         Section {
             name: "EXOPLAYER POOL".to_owned(),
             content: vec![
@@ -733,7 +740,7 @@ mod tests {
         }; "exoplayer pool (empty)"
     )]
     #[test_case(
-        "======== EXOPLAYER POOL =========\nTotal players created: 0\nMax allowed unreserved instances: 12\nMax allowed reserved instances: 1\nAvailable created unreserved instances: 0\nAvailable created reserved instances: 0\nTotal unreserved created: 0\nTotal reserved created: 0\n\nOwnership Info:\n  Owner abc def\n    reserved: 12\n    unreserved: 1\n  Owner abc def ghi\n    reserved: 5\n    unreserved: 4\n" =>
+        "======== EXOPLAYER POOL =========\nTotal players created: 0\nMax allowed unreserved instances: 12\nMax allowed reserved instances: 1\nAvailable created unreserved instances: 0\nAvailable created reserved instances: 0\nTotal unreserved created: 0\nTotal reserved created: 0\n\nOwnership Info:\n  Owner abc def\n    reserved: 12\n    unreserved: 1\n  Owner abc def ghi\n    reserved: 5\n    unreserved: 4\n",
         Section {
             name: "EXOPLAYER POOL".to_owned(),
             content: vec![
@@ -772,7 +779,7 @@ mod tests {
         }; "exoplayer pool (with ownership info)"
     )]
     #[test_case(
-        "========== TRACE ==========\nhttps://debuglogs.org/0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123" =>
+        "========== TRACE ==========\nhttps://debuglogs.org/0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123",
         Section {
             name: "TRACE".to_owned(),
             content: vec![InfoEntry::RemoteObject(
@@ -782,7 +789,7 @@ mod tests {
         }; "trace"
     )]
     #[test_case(
-        "========= THREADS =========\n[1] main\n[1234] Signal Catcher\n[1235] AbcDefGhi\n[6789] OkHttp https://abc-def.example.org/..." =>
+        "========= THREADS =========\n[1] main\n[1234] Signal Catcher\n[1235] AbcDefGhi\n[6789] OkHttp https://abc-def.example.org/...",
         Section {
             name: "THREADS".to_owned(),
             content: vec![
@@ -795,7 +802,7 @@ mod tests {
         }; "threads"
     )]
     #[test_case(
-        "===== BLOCKED THREADS =====\n-- [9876] AbcDefGhi (BLOCKED)\nghi.jkl.ABCdef.abcDefGhi(Native Method)\nabc.def.Abc$Cba.run(DEF.java:456)\nabc.def.Def.run(ABC.java:123)" =>
+        "===== BLOCKED THREADS =====\n-- [9876] AbcDefGhi (BLOCKED)\nghi.jkl.ABCdef.abcDefGhi(Native Method)\nabc.def.Abc$Cba.run(DEF.java:456)\nabc.def.Def.run(ABC.java:123)",
         Section {
             name: "BLOCKED THREADS".to_owned(),
             content: vec![],
@@ -813,7 +820,7 @@ mod tests {
         }; "blocked threads"
     )]
     #[test_case(
-        "===== REMAPPED RECORDS =====\n--- Recipients\n\n| _id | old_id | new_id |\n|-----|--------|--------|\n| 1   | 23     | 456    |\n| 2   | 345    | 678    |\n\n--- Threads\n\n| _id | old_id | new_id |\n|-----|--------|--------|\n| 3   | 45     | 678    |\n| 4   | 567    | 890    |" =>
+        "===== REMAPPED RECORDS =====\n--- Recipients\n\n| _id | old_id | new_id |\n|-----|--------|--------|\n| 1   | 23     | 456    |\n| 2   | 345    | 678    |\n\n--- Threads\n\n| _id | old_id | new_id |\n|-----|--------|--------|\n| 3   | 45     | 678    |\n| 4   | 567    | 890    |",
         Section {
             name: "REMAPPED RECORDS".to_owned(),
             content: vec![],
@@ -848,35 +855,49 @@ mod tests {
         }; "remapped records"
     )]
     #[test_case(
-        "\n\n \n====== EMPTY SECTION ======\n" =>
+        "\n\n \n====== EMPTY SECTION ======\n",
         Section {
             name: "EMPTY SECTION".to_owned(),
             content: vec![],
             subsections: vec![],
         }; "empty section"
     )]
-    fn info_section_ok(input: &str) -> Section<InfoEntry> {
-        parsing_test(info_section(SectionLevel::Base), input)
+    fn info_section_ok(input: &str, output: Section<InfoEntry>) {
+        test_parsing(info_section(SectionLevel::Base), input, "", output);
     }
 
-    #[test_case("01-23 12:34:56.789 12345 12367 I abc: Log message" => LogEntry {
+    #[test_case("01-23 12:34:56.789 12345 12367 I abc: Log message", LogEntry {
         timestamp: NaiveDate::from_ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string(),
         level: Some(LogLevel::Info),
         meta: PlatformMetadata::AndroidLogcat { process_id: "12345".to_owned(), thread_id: "12367".to_owned(), tag: "abc".to_owned() },
         message: "Log message".to_owned(),
     }; "basic")]
-    #[test_case("01-23 12:34:56.789 12345 12367 I abc: " => LogEntry {
+    #[test_case("01-23 12:34:56.789 12345 12367 I V...@... MSG_WINDOW_FOCUS_CHANGED 1 1", LogEntry {
+        timestamp: NaiveDate::from_ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string(),
+        level: Some(LogLevel::Info),
+        meta: PlatformMetadata::AndroidLogcat { process_id: "12345".to_owned(), thread_id: "12367".to_owned(), tag: "V...@...".to_owned() },
+        message: "MSG_WINDOW_FOCUS_CHANGED 1 1".to_owned(),
+    }; "no colon separator for tag")]
+    #[test_case("01-23 12:34:56.789 12345 12367 I abc: ", LogEntry {
         timestamp: NaiveDate::from_ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string(),
         level: Some(LogLevel::Info),
         meta: PlatformMetadata::AndroidLogcat { process_id: "12345".to_owned(), thread_id: "12367".to_owned(), tag: "abc".to_owned() },
         message: "".to_owned(),
     }; "no message")]
-    fn logcat_entry_ok(input: &str) -> LogEntry {
-        parsing_test(logcat_entry(1234), input)
+    fn logcat_entry_ok(input: &str, output: LogEntry) {
+        test_parsing(logcat_entry(1234), input, "", output);
     }
 
-    #[test_case("========= LOGCAT ==========\n--------- beginning of crash\n01-21 12:34:56.789  1234  5678 F libc    : Fatal signal 11 (SIGSEGV), code 2, fault addr 0x12345678 in tid 9876 (Abc)\n--------- beginning of main\n01-22 12:34:56.789 12345 12367 I chatty  : uid=10001(org.thoughtcrime.securesms) expire 1 line\n01-23 12:34:56.789 12345 12367 I chatty  : uid=10001(org.thoughtcrime.securesms) expire 5 lines"
-    => Section {
+    #[test]
+    fn logcat_entry_err() {
+        let input =
+        "01-24 12:34:56.789 12345 12367 I V...@... MSG_WINDOW_FOCUS_CHANGED 1 1\n============ LOGGER =============\n[1.23.4] [5678 ] 1234-01-23 12:34:56.789 GMT+01:00 I abc: Log message";
+
+        test_parsing_err_or_remainder(logcat_entry(1234), input);
+    }
+
+    #[test_case("========= LOGCAT ==========\n--------- beginning of crash\n01-21 12:34:56.789  1234  5678 F libc    : Fatal signal 11 (SIGSEGV), code 2, fault addr 0x12345678 in tid 9876 (Abc)\n--------- beginning of main\n01-22 12:34:56.789 12345 12367 I chatty  : uid=10001(org.thoughtcrime.securesms) expire 1 line\n01-23 12:34:56.789 12345 12367 I chatty  : uid=10001(org.thoughtcrime.securesms) expire 5 lines",
+    Section {
         name: LOGCAT_SECTION_NAME.to_owned(),
         content: vec![],
         subsections: vec![
@@ -912,38 +933,44 @@ mod tests {
             },
         ],
     }; "basic")]
-    fn logcat_section_ok(input: &str) -> Section<LogEntry> {
-        parsing_test(logcat_section(1234), input)
+    fn logcat_section_ok(input: &str, output: Section<LogEntry>) {
+        test_parsing(logcat_section(1234), input, "", output);
     }
 
-    #[test_case("[1.23.4] [5678 ] 1234-01-23 12:34:56.789 GMT+01:00 I abc: Log message" => LogEntry {
+    #[test_case("[1.23.4] [5678 ] 1234-01-23 12:34:56.789 GMT+01:00 I abc: Log message", LogEntry {
         timestamp: FixedOffset::east(3600).ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string(),
         level: Some(LogLevel::Info),
         meta: PlatformMetadata::AndroidLogger { version: "1.23.4".to_owned(), thread_id: "5678".to_owned(), tag: "abc".to_owned() },
         message: "Log message".to_owned(),
     }; "basic")]
-    #[test_case("[1.23.4] [5678 ] 1234-01-23 12:34:56.789 GMT+01:00 I abc: Log message\ncontinues here!" => LogEntry {
+    #[test_case("[1.23.4] [main ] 1234-01-23 12:34:56.789 GMT+01:00 I abc: Log message", LogEntry {
+        timestamp: FixedOffset::east(3600).ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string(),
+        level: Some(LogLevel::Info),
+        meta: PlatformMetadata::AndroidLogger { version: "1.23.4".to_owned(), thread_id: "main".to_owned(), tag: "abc".to_owned() },
+        message: "Log message".to_owned(),
+    }; "main thread id")]
+    #[test_case("[1.23.4] [5678 ] 1234-01-23 12:34:56.789 GMT+01:00 I abc: Log message\ncontinues here!", LogEntry {
         timestamp: FixedOffset::east(3600).ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string(),
         level: Some(LogLevel::Info),
         meta: PlatformMetadata::AndroidLogger { version: "1.23.4".to_owned(), thread_id: "5678".to_owned(), tag: "abc".to_owned() },
         message: "Log message\ncontinues here!".to_owned(),
     }; "multiline")]
-    #[test_case("[1.23.4] [5678 ] 1234-01-23 12:34:56.789 ABC I abc: Log message" => LogEntry {
+    #[test_case("[1.23.4] [5678 ] 1234-01-23 12:34:56.789 ABC I abc: Log message", LogEntry {
         timestamp: NaiveDate::from_ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string() + " ABC",
         level: Some(LogLevel::Info),
         meta: PlatformMetadata::AndroidLogger { version: "1.23.4".to_owned(), thread_id: "5678".to_owned(), tag: "abc".to_owned() },
         message: "Log message".to_owned(),
     }; "timestamp not in GMT+hh:mm format")]
-    fn logger_entry_ok(input: &str) -> LogEntry {
-        parsing_test(logger_entry, input)
+    fn logger_entry_ok(input: &str, output: LogEntry) {
+        test_parsing(logger_entry, input, "", output);
     }
 
     #[test]
     fn content_ok_logcat_empty_logger_multiple() {
-        let (remainder, result) = content("========= LOGCAT ==========\n========= LOGGER ==========\n[1.23.4] [5678 ] 1234-01-23 12:34:56.789 GMT+01:00 I abc: Log message\n[1.23.4] [5678 ] 1234-01-23 12:34:56.790 GMT+01:00 W abc: Log message 2").unwrap();
-        assert_eq!(remainder, "", "remainder should be empty");
-        assert_eq!(
-            result,
+        test_parsing(
+            content,
+            "========= LOGCAT ==========\n========= LOGGER ==========\n[1.23.4] [5678 ] 1234-01-23 12:34:56.789 GMT+01:00 I abc: Log message\n[1.23.4] [5678 ] 1234-01-23 12:34:56.790 GMT+01:00 W abc: Log message 2",
+            "",
             Content {
                 information: vec![],
                 logs: vec![
@@ -951,6 +978,75 @@ mod tests {
                         name: LOGCAT_SECTION_NAME.to_owned(),
                         content: vec![],
                         subsections: vec![],
+                    },
+                    Section {
+                        name: LOGGER_SECTION_NAME.to_owned(),
+                        content: vec![
+                            LogEntry {
+                                timestamp: FixedOffset::east(3600)
+                                    .ymd(1234, 1, 23)
+                                    .and_hms_milli(12, 34, 56, 789)
+                                    .to_string(),
+                                level: Some(LogLevel::Info),
+                                meta: PlatformMetadata::AndroidLogger {
+                                    version: "1.23.4".to_owned(),
+                                    thread_id: "5678".to_owned(),
+                                    tag: "abc".to_owned(),
+                                },
+                                message: "Log message".to_owned(),
+                            },
+                            LogEntry {
+                                timestamp: FixedOffset::east(3600)
+                                    .ymd(1234, 1, 23)
+                                    .and_hms_milli(12, 34, 56, 790)
+                                    .to_string(),
+                                level: Some(LogLevel::Warn),
+                                meta: PlatformMetadata::AndroidLogger {
+                                    version: "1.23.4".to_owned(),
+                                    thread_id: "5678".to_owned(),
+                                    tag: "abc".to_owned(),
+                                },
+                                message: "Log message 2".to_owned(),
+                            },
+                        ],
+                        subsections: vec![],
+                    },
+                ],
+            }
+        );
+    }
+
+    #[test]
+    fn content_ok_logcat_multiple_logger_multiple() {
+        test_parsing(
+            content,
+            "========= LOGCAT ==========\n--------- beginning of main\n01-24 12:34:56.789 12345 12367 I V...@... MSG_WINDOW_FOCUS_CHANGED 1 1\n01-24 12:34:56.789 12345 12367 I V...@... MSG_WINDOW_FOCUS_CHANGED 1 1\n============ LOGGER =============\n[1.23.4] [5678 ] 1234-01-23 12:34:56.789 GMT+01:00 I abc: Log message\n[1.23.4] [5678 ] 1234-01-23 12:34:56.790 GMT+01:00 W abc: Log message 2",
+            "",
+            Content {
+                information: vec![],
+                logs: vec![
+                    Section {
+                        name: LOGCAT_SECTION_NAME.to_owned(),
+                        content: vec![],
+                        subsections: vec![
+                            Section {
+                                name: "beginning of main".to_owned(),
+                                content: vec![LogEntry {
+                                    timestamp: NaiveDate::from_ymd(Utc::today().year(), 1, 24)
+                                        .and_hms_milli(12, 34, 56, 789)
+                                        .to_string(),
+                                    level: Some(LogLevel::Info),
+                                    meta: PlatformMetadata::AndroidLogcat {
+                                        process_id: "12345".to_owned(),
+                                        thread_id: "12367".to_owned(),
+                                        tag: "V...@...".to_owned(),
+                                    },
+                                    message: "MSG_WINDOW_FOCUS_CHANGED 1 1\nMSG_WINDOW_FOCUS_CHANGED 1 1"
+                                        .to_owned(),
+                                }],
+                                subsections: vec![]
+                            }
+                        ],
                     },
                     Section {
                         name: LOGGER_SECTION_NAME.to_owned(),

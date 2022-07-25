@@ -13,7 +13,8 @@ use crate::parsers::*;
 
 const LOGS_SECTION_NAME: &str = "Logs";
 
-fn info_section(input: &str) -> IResult<&str, Section<InfoEntry>> {
+#[traceable_parser]
+fn info_section(input: Span) -> IResult<Span, Section<InfoEntry>> {
     let (remainder, name) = verify(
         delimited(multispace0, common::section_header, opt(newline)),
         |name: &str| name != LOGS_SECTION_NAME,
@@ -35,7 +36,8 @@ fn info_section(input: &str) -> IResult<&str, Section<InfoEntry>> {
     ))
 }
 
-fn level(input: &str) -> IResult<&str, LogLevel> {
+#[traceable_parser]
+fn level(input: Span) -> IResult<Span, LogLevel> {
     let (remainder, s) = alt((
         tag(LogLevel::Trace.to_string().to_uppercase().as_str()),
         tag(LogLevel::Debug.to_string().to_uppercase().as_str()),
@@ -48,7 +50,8 @@ fn level(input: &str) -> IResult<&str, LogLevel> {
     Ok((remainder, s.parse().unwrap()))
 }
 
-fn metadata(input: &str) -> IResult<&str, (LogLevel, DateTime<Utc>)> {
+#[traceable_parser]
+fn metadata(input: Span) -> IResult<Span, (LogLevel, DateTime<Utc>)> {
     separated_pair(
         level,
         space0,
@@ -59,7 +62,8 @@ fn metadata(input: &str) -> IResult<&str, (LogLevel, DateTime<Utc>)> {
     )(input)
 }
 
-fn log_entry(input: &str) -> IResult<&str, LogEntry> {
+#[traceable_parser]
+fn log_entry(input: Span) -> IResult<Span, LogEntry> {
     map(
         tuple((metadata, space0, common::message(metadata))),
         |((lvl, dt), _, message)| LogEntry {
@@ -71,7 +75,8 @@ fn log_entry(input: &str) -> IResult<&str, LogEntry> {
     )(input)
 }
 
-pub fn content(input: &str) -> IResult<&str, Content> {
+#[traceable_parser]
+pub fn content(input: Span) -> IResult<Span, Content> {
     let (remainder, (information, logs)) = separated_pair(
         preceded(multispace0, many0(info_section)),
         verify(common::section_header, |name: &str| {
@@ -97,9 +102,8 @@ pub fn content(input: &str) -> IResult<&str, Content> {
 mod tests {
     use test_case::test_case;
 
-    use crate::parsing_test;
-
     use super::*;
+    use crate::test_parsing;
 
     fn test_bucket(country_code: &str, value: u32) -> Bucket {
         Bucket {
@@ -108,18 +112,17 @@ mod tests {
         }
     }
 
-    #[test_case("INFO  1234-01-23T12:34:56.789Z" => (LogLevel::Info, Utc.ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789)); "basic")]
-    fn metadata_ok(input: &str) -> (LogLevel, DateTime<Utc>) {
-        parsing_test(metadata, input)
+    #[test_case("INFO  1234-01-23T12:34:56.789Z", (LogLevel::Info, Utc.ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789)); "basic")]
+    fn metadata_ok(input: &str, output: (LogLevel, DateTime<Utc>)) {
+        test_parsing(metadata, input, "", output);
     }
 
     #[test]
     fn content_ok() {
-        let (remainder, result) = content("\n  \n\n========= Section 1 =========\nKey: 123.456 value\nAnother key: disabled\n\n========= Section 2 =========\nbucketed: enabled 1:2,3:4,*:5\n\n\n\n\n========= Section 3 =========\nabc: disabled true\n\n========= Logs =========\nINFO  1234-01-23T12:34:56.789Z This is a test message.\nDEBUG  1234-01-23T12:34:56.987Z Another message.").unwrap();
-
-        assert_eq!(remainder, "", "remainder should be empty");
-        assert_eq!(
-            result,
+        test_parsing(
+            content,
+            "\n  \n\n========= Section 1 =========\nKey: 123.456 value\nAnother key: disabled\n\n========= Section 2 =========\nbucketed: enabled 1:2,3:4,*:5\n\n\n\n\n========= Section 3 =========\nabc: disabled true\n\n========= Logs =========\nINFO  1234-01-23T12:34:56.789Z This is a test message.\nDEBUG  1234-01-23T12:34:56.987Z Another message.",
+            "",
             Content {
                 information: vec![
                     Section {

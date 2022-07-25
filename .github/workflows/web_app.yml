@@ -35,7 +35,7 @@ jobs:
       - name: "Trunk: build"
         run: ./trunk build
       - name: "Rust: test"
-        run: cargo test
+        run: cargo test --features trace
       - name: "Rust: clippy"
         run: cargo clippy
       - name: "Rust: rustfmt check"

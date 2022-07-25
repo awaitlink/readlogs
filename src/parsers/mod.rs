@@ -1,9 +1,12 @@
 use anyhow::anyhow;
 use chrono::prelude::*;
 use nom::{combinator::eof, sequence::terminated};
+pub use nom_tracable::{tracable_parser as traceable_parser, TracableInfo as TraceableInfo};
 use yew::prelude::*;
 
-use crate::{components::*, LogLevel, Platform, RemoteObject, RenderedLogSection, SearchQuery};
+use crate::{
+    components::*, span, LogLevel, Platform, RemoteObject, RenderedLogSection, SearchQuery,
+};
 
 mod android;
 mod common;
@@ -12,6 +15,8 @@ mod ios;
 mod ios_filename;
 
 pub use ios_filename::*;
+
+pub type Span<'a> = nom_locate::LocatedSpan<&'a str, TraceableInfo>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Content {
@@ -93,7 +98,7 @@ impl Content {
         };
 
         let (_, output) =
-            terminated(parsing_fn, eof)(text).map_err(|error| anyhow!("{:#?}", error))?;
+            terminated(parsing_fn, eof)(span(text)).map_err(|error| anyhow!("{:#?}", error))?;
 
         Ok(output)
     }

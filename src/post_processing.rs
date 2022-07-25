@@ -38,10 +38,10 @@ pub fn collapse_log_entries(entries: Vec<LogEntry>) -> Vec<LogEntry> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{parsers::PlatformMetadata, LogLevel};
     use chrono::prelude::*;
 
     use super::*;
+    use crate::{parsers::PlatformMetadata, LogLevel};
 
     #[test]
     fn collapse_log_entries_ok_android_logcat() {

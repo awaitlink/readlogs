@@ -1,7 +1,6 @@
-use yew::prelude::*;
-
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlInputElement, InputEvent};
+use yew::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct InputProps {

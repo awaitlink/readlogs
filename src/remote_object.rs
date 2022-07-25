@@ -6,7 +6,11 @@ use nom::{
     IResult,
 };
 
-use crate::{impl_from_str, Platform};
+use crate::{
+    impl_from_str,
+    parsers::{traceable_parser, Span},
+    Platform,
+};
 
 pub const KEY_LENGTH: usize = 64;
 pub const BASE_DEBUGLOGS_URL: &str = "https://debuglogs.org/";
@@ -73,7 +77,8 @@ impl RemoteObject {
     }
 }
 
-pub fn remote_object(input: &str) -> IResult<&str, RemoteObject> {
+#[traceable_parser]
+pub fn remote_object(input: Span) -> IResult<Span, RemoteObject> {
     map(
         preceded(
             tag(BASE_DEBUGLOGS_URL),
@@ -100,7 +105,7 @@ pub fn remote_object(input: &str) -> IResult<&str, RemoteObject> {
                         ),
                         tag("/"),
                     )),
-                    verify(is_a("abcdef1234567890"), |s: &str| s.len() == KEY_LENGTH),
+                    verify(is_a("abcdef1234567890"), |s: &Span| s.len() == KEY_LENGTH),
                     alt((
                         value(Platform::Ios, tag(Platform::Ios.debuglogs_url_ending())),
                         value(
@@ -110,17 +115,17 @@ pub fn remote_object(input: &str) -> IResult<&str, RemoteObject> {
                         value(Platform::Android, not(tag("."))),
                     )),
                 )),
-                |(opt, _, platform): &(_, &str, _)| match opt {
+                |(opt, _, platform): &(_, Span, _)| match opt {
                     Some((explcit_platform, _)) => platform == explcit_platform,
                     None => true,
                 },
             ),
         ),
-        |(opt, key, platform): (_, &str, _)| match opt {
+        |(opt, key, platform): (_, Span, _)| match opt {
             Some((_, version)) => {
-                RemoteObject::new_unchecked(platform, Some(version.to_string()), key)
+                RemoteObject::new_unchecked(platform, Some(version.to_string()), key.fragment())
             }
-            None => RemoteObject::new_unchecked(platform, None, key),
+            None => RemoteObject::new_unchecked(platform, None, key.fragment()),
         },
     )(input)
 }
@@ -132,45 +137,44 @@ mod tests {
     use test_case::test_case;
 
     use super::*;
-
-    use crate::parsing_test;
+    use crate::{test_parsing, test_parsing_err_or_remainder};
 
     #[test_case(
-        "https://debuglogs.org/0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123" =>
+        "https://debuglogs.org/0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123",
         RemoteObject::new_unchecked(Platform::Android, None, "0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123");
         "android"
     )]
     #[test_case(
-        "https://debuglogs.org/0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123.zip" =>
+        "https://debuglogs.org/0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123.zip",
         RemoteObject::new_unchecked(Platform::Ios, None, "0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123");
         "ios"
     )]
     #[test_case(
-        "https://debuglogs.org/0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123.gz" =>
+        "https://debuglogs.org/0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123.gz",
         RemoteObject::new_unchecked(Platform::Desktop, None, "0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123");
         "desktop"
     )]
-    fn parsing_old_ok(input: &str) -> RemoteObject {
-        parsing_test(remote_object, input)
+    fn parsing_old_ok(input: &str, output: RemoteObject) {
+        test_parsing(remote_object, input, "", output);
     }
 
     #[test_case(
-        "https://debuglogs.org/android/1.23.4/0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123" =>
+        "https://debuglogs.org/android/1.23.4/0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123",
         RemoteObject::new_unchecked(Platform::Android, Some("1.23.4".to_owned()), "0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123");
         "android"
     )]
     #[test_case(
-        "https://debuglogs.org/ios/1.23.4/0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123.zip" =>
+        "https://debuglogs.org/ios/1.23.4/0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123.zip",
         RemoteObject::new_unchecked(Platform::Ios, Some("1.23.4".to_owned()), "0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123");
         "ios"
     )]
     #[test_case(
-        "https://debuglogs.org/desktop/1.23.4/0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123.gz" =>
+        "https://debuglogs.org/desktop/1.23.4/0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123.gz",
         RemoteObject::new_unchecked(Platform::Desktop, Some("1.23.4".to_owned()), "0123456789abcdefabcd0123456789abcdefabcd0123456789abcdefabcd0123");
         "desktop"
     )]
-    fn parsing_new_ok(input: &str) -> RemoteObject {
-        parsing_test(remote_object, input)
+    fn parsing_new_ok(input: &str, output: RemoteObject) {
+        test_parsing(remote_object, input, "", output);
     }
 
     #[test_case(
@@ -218,7 +222,7 @@ mod tests {
         "no beginning"
     )]
     fn parsing_err(input: &str) {
-        assert!(remote_object(input).is_err());
+        test_parsing_err_or_remainder(remote_object, input);
     }
 
     #[test_case(
