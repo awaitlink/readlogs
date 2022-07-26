@@ -15,7 +15,8 @@ To use it, create a debug log via the Signal app on your device as described in 
 
 ## Overview
 This repository primarily contains two pieces of software:
-- A Rust web app (via [WebAssembly](https://webassembly.org)) in the [`src`](/src) folder (as well as `index.html` and other files in the root).
+- A Rust web app (via [WebAssembly](https://webassembly.org)) in the [`readlogs/src`](/readlogs/src) folder (as well as `index.html` and other files in the root).
+    - Utility procedural macros for the Rust web app in in the [`readlogs-macros/src`](/readlogs-macros/src).
 - A small JavaScript [Cloudflare Worker](https://workers.cloudflare.com) in the [`worker`](/worker) folder.
 
 ## How it works
