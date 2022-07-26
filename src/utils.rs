@@ -54,7 +54,12 @@ macro_rules! traceable_configurable_parser {
 }
 
 pub fn span(input: &str) -> Span {
-    Span::new_extra(input, crate::parsers::TraceableInfo::new().parser_width(80))
+    Span::new_extra(
+        input,
+        crate::parsers::TraceableInfo::new()
+            .parser_width(80)
+            .fragment_width(80),
+    )
 }
 
 #[cfg(test)]

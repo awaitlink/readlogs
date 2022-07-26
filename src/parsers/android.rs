@@ -1,6 +1,6 @@
 use nom::{
     branch::alt,
-    bytes::complete::{is_a, is_not, tag, take_until},
+    bytes::complete::{is_a, is_not, tag, take_till, take_until, take_while},
     character::complete::{self, digit1, multispace0, newline, space0, space1},
     combinator::{map, not, opt, peek, success, value, verify},
     multi::{count, many0, many1, separated_list1},
@@ -298,10 +298,7 @@ traceable_configurable_parser!(fn logcat_entry<'a>(year: i32) -> LogEntry: |inpu
             space0,
             is_a("VDIWEF"),
             space0,
-            alt((
-                verify(terminated(take_until(": "), tag(": ")), |span: &Span| !span.contains('\n')),
-                terminated(take_until(" "), tag(" ")),
-            )),
+            verify(terminated(take_till(char::is_whitespace), pair(take_while(char::is_whitespace), opt(tag(": ")))), |span: &Span| !span.contains('\n')),
             space0,
             alt((is_not("\n"), success(span("")))),
         )),
@@ -311,7 +308,7 @@ traceable_configurable_parser!(fn logcat_entry<'a>(year: i32) -> LogEntry: |inpu
             meta: PlatformMetadata::AndroidLogcat {
                 process_id: process_id.fragment().to_string(),
                 thread_id: thread_id.fragment().to_string(),
-                tag: tag.trim().to_owned(),
+                tag: tag.trim_end_matches(':').trim().to_owned(),
             },
             message: message.fragment().to_string(),
         },
@@ -878,6 +875,12 @@ mod tests {
         meta: PlatformMetadata::AndroidLogcat { process_id: "12345".to_owned(), thread_id: "12367".to_owned(), tag: "V...@...".to_owned() },
         message: "MSG_WINDOW_FOCUS_CHANGED 1 1".to_owned(),
     }; "no colon separator for tag")]
+    #[test_case("01-23 12:34:56.789 12345 12367 I V...@... Log message: test", LogEntry {
+        timestamp: NaiveDate::from_ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string(),
+        level: Some(LogLevel::Info),
+        meta: PlatformMetadata::AndroidLogcat { process_id: "12345".to_owned(), thread_id: "12367".to_owned(), tag: "V...@...".to_owned() },
+        message: "Log message: test".to_owned(),
+    }; "no colon separator for tag but has colon later")]
     #[test_case("01-23 12:34:56.789 12345 12367 I abc: ", LogEntry {
         timestamp: NaiveDate::from_ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string(),
         level: Some(LogLevel::Info),
