@@ -794,6 +794,7 @@ dependencies = [
  "nom_locate 4.0.0",
  "percent-encoding",
  "pretty_assertions",
+ "readlogs-macros",
  "reqwasm",
  "strum",
  "strum_macros",
@@ -804,6 +805,14 @@ dependencies = [
  "yew 0.19.3",
  "yewtil",
  "zip",
+]
+
+[[package]]
+name = "readlogs-macros"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]

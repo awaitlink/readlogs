@@ -6,7 +6,7 @@ const baseColor = colors.gray;
 module.exports = {
   content: [
     "./index.html",
-    "./src/**/*.rs",
+    "./readlogs/src/**/*.rs",
   ],
   plugins: [
     require("@tailwindcss/typography"),

@@ -8,7 +8,7 @@ use nom::{
     IResult,
 };
 
-use crate::{parsers::*, post_processing, remote_object, traceable_configurable_parser};
+use crate::{parsers::*, post_processing, remote_object};
 
 const LOGCAT_SECTION_NAME: &str = "LOGCAT";
 const LOGGER_SECTION_NAME: &str = "LOGGER";
@@ -118,7 +118,10 @@ impl IndentedSectionType {
     }
 }
 
-traceable_configurable_parser!(fn indented_subsection<'a>(ty: IndentedSectionType) -> Section<InfoEntry>: |input| {
+#[traceable_configurable_parser]
+fn indented_subsection(
+    ty: IndentedSectionType,
+) -> impl FnMut(Span) -> IResult<Span, Section<InfoEntry>> {
     map(
         tuple((
             is_not("\n"),
@@ -138,14 +141,15 @@ traceable_configurable_parser!(fn indented_subsection<'a>(ty: IndentedSectionTyp
             subsections: vec![],
         },
     )(input)
-});
+}
 
-traceable_configurable_parser!(fn subsection_with_indented_subsections<'a>(
+#[traceable_configurable_parser]
+fn subsection_with_indented_subsections<'a>(
     raw_name: &'a str,
     name: &'a str,
     explicit_none: &'a str,
     ty: IndentedSectionType,
-) -> Vec<Section<InfoEntry>>: |input| {
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Vec<Section<InfoEntry>>> {
     preceded(
         common::multispaced0(tag(raw_name)),
         map(
@@ -165,9 +169,12 @@ traceable_configurable_parser!(fn subsection_with_indented_subsections<'a>(
             },
         ),
     )(input)
-});
+}
 
-traceable_configurable_parser!(fn section_with_indented_subsections<'a>(ty: IndentedSectionType) -> Section<InfoEntry>: |input| {
+#[traceable_configurable_parser]
+fn section_with_indented_subsections(
+    ty: IndentedSectionType,
+) -> impl FnMut(Span) -> IResult<Span, Section<InfoEntry>> {
     map(
         tuple((
             is_not("\n"),
@@ -188,7 +195,7 @@ traceable_configurable_parser!(fn section_with_indented_subsections<'a>(ty: Inde
             subsections,
         },
     )(input)
-});
+}
 
 #[traceable_parser]
 fn generic_table(input: Span) -> IResult<Span, GenericTable> {
@@ -218,7 +225,8 @@ fn generic_table(input: Span) -> IResult<Span, GenericTable> {
     )(input)
 }
 
-traceable_configurable_parser!(fn info_section<'a>(depth: SectionLevel) -> Section<InfoEntry>: |input| {
+#[traceable_configurable_parser]
+fn info_section<'a>(depth: SectionLevel) -> impl FnMut(Span) -> IResult<Span, Section<InfoEntry>> {
     let section_header_parser = match depth {
         SectionLevel::Base => common::section_header,
         SectionLevel::Sub => subsection_header,
@@ -285,9 +293,10 @@ traceable_configurable_parser!(fn info_section<'a>(depth: SectionLevel) -> Secti
             subsections,
         },
     ))
-});
+}
 
-traceable_configurable_parser!(fn logcat_entry<'a>(year: i32) -> LogEntry: |input| {
+#[traceable_configurable_parser]
+fn logcat_entry<'a>(year: i32) -> impl FnMut(Span) -> IResult<Span, LogEntry> {
     map(
         tuple((
             common::naive_date_time(Some(year), "-", " ", ":", Some("."), None),
@@ -298,7 +307,13 @@ traceable_configurable_parser!(fn logcat_entry<'a>(year: i32) -> LogEntry: |inpu
             space0,
             is_a("VDIWEF"),
             space0,
-            verify(terminated(take_till(char::is_whitespace), pair(take_while(char::is_whitespace), opt(tag(": ")))), |span: &Span| !span.contains('\n')),
+            verify(
+                terminated(
+                    take_till(char::is_whitespace),
+                    pair(take_while(char::is_whitespace), opt(tag(": "))),
+                ),
+                |span: &Span| !span.contains('\n'),
+            ),
             space0,
             alt((is_not("\n"), success(span("")))),
         )),
@@ -313,9 +328,10 @@ traceable_configurable_parser!(fn logcat_entry<'a>(year: i32) -> LogEntry: |inpu
             message: message.fragment().to_string(),
         },
     )(input)
-});
+}
 
-traceable_configurable_parser!(fn logcat_section<'a>(year: i32) -> Section<LogEntry>: |input| {
+#[traceable_configurable_parser]
+fn logcat_section<'a>(year: i32) -> impl FnMut(Span) -> IResult<Span, Section<LogEntry>> {
     preceded(
         common::multispaced0(verify(common::section_header, |name: &str| {
             name == LOGCAT_SECTION_NAME
@@ -339,7 +355,7 @@ traceable_configurable_parser!(fn logcat_section<'a>(year: i32) -> Section<LogEn
             },
         ),
     )(input)
-});
+}
 
 #[traceable_parser]
 fn logger_metadata(input: Span) -> IResult<Span, (PlatformMetadata, String, LogLevel)> {

@@ -2,6 +2,7 @@ use anyhow::anyhow;
 use chrono::prelude::*;
 use nom::{combinator::eof, sequence::terminated};
 pub use nom_tracable::{tracable_parser as traceable_parser, TracableInfo as TraceableInfo};
+pub use readlogs_macros::traceable_configurable_parser;
 use yew::prelude::*;
 
 use crate::{

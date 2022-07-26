@@ -25,34 +25,6 @@ macro_rules! impl_from_str {
     };
 }
 
-#[macro_export]
-macro_rules! traceable_configurable_parser {
-    ($vis:vis fn $fn_name:ident < $lifetime:lifetime > ( $($arg_name:ident: $arg_ty:ty),+ $(,)? ) -> $fn_parse_result_ty:ty : | $input_ident:ident | $block:block) => {
-        $vis fn $fn_name< $lifetime >($($arg_name: $arg_ty),+) -> impl FnMut(Span< $lifetime >) -> IResult<Span< $lifetime >, $fn_parse_result_ty> {
-            move |input| {
-                #[cfg(feature = "trace")]
-                let name = stringify!($fn_name).to_string() + "("
-                    $(+ &format!("{:?}, ", $arg_name))+
-                    + ")";
-
-                #[cfg(feature = "trace")]
-                let (depth, input) = ::nom_tracable::forward_trace(input, &name);
-
-                let body_ret = {
-                    let body = |$input_ident| $block;
-                    body(input)
-                };
-
-                #[cfg(feature = "trace")]
-                return ::nom_tracable::backward_trace(body_ret, &name, depth);
-
-                #[cfg(not(feature = "trace"))]
-                return body_ret;
-            }
-        }
-    };
-}
-
 pub fn span(input: &str) -> Span {
     Span::new_extra(
         input,

@@ -10,7 +10,7 @@ use nom::{
     IResult,
 };
 
-use crate::{parsers::*, traceable_configurable_parser};
+use crate::parsers::*;
 
 // https://docs.rs/nom/6.2.1/nom/recipes/index.html#whitespace
 pub fn ws<'a, F: 'a, O, E>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, O, E>
@@ -89,14 +89,15 @@ pub fn key_maybe_enabled_value(input: Span) -> IResult<Span, InfoEntry> {
     )(input)
 }
 
-traceable_configurable_parser!(pub fn naive_date_time<'a>(
+#[traceable_configurable_parser]
+pub fn naive_date_time<'a>(
     assumed_year: Option<i32>,
     ymd_separator: &'a str,
     ymd_hms_separator: &'a str,
     hms_separator: &'a str,
     millisecond_separator: Option<&'a str>,
     ending: Option<&'a str>,
-) -> NaiveDateTime: |input| {
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, NaiveDateTime> {
     let (remainder, year) = match assumed_year {
         Some(year) => (input, year),
         None => map(terminated(digit1, tag(ymd_separator)), |year: Span| {
@@ -119,8 +120,7 @@ traceable_configurable_parser!(pub fn naive_date_time<'a>(
     let date = NaiveDate::from_ymd(year, month.parse().unwrap(), day.parse().unwrap());
 
     let datetime = if let Some(millisecond_separator) = millisecond_separator {
-        let (new_remainder, millisecond) =
-            preceded(tag(millisecond_separator), digit1)(remainder)?;
+        let (new_remainder, millisecond) = preceded(tag(millisecond_separator), digit1)(remainder)?;
 
         remainder = new_remainder;
 
@@ -144,7 +144,7 @@ traceable_configurable_parser!(pub fn naive_date_time<'a>(
     }
 
     Ok((remainder, datetime))
-});
+}
 
 /// Parses log message contents until a new `metadata` is encountered or the end of the input.
 pub fn message<'a, F: 'a, O, E: ParseError<Span<'a>>>(
