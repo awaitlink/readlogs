@@ -299,7 +299,7 @@ impl Section<LogEntry> {
                 <Table>
                     <thead>
                         <TableRow classes={classes!("text-left")}>
-                            <TableItem tag="th" classes={classes!("min-w-[235px]")}>{ "Timestamp" }</TableItem>
+                            <TableItem tag="th" classes={classes!("min-w-[250px]")}>{ "Timestamp" }</TableItem>
 
                             {
                                 match &self.content.get(0).unwrap().meta { // TODO: assumption?
