@@ -134,6 +134,14 @@ impl Component for Model {
         }
     }
 
+    fn rendered(&mut self, _ctx: &yew::prelude::Context<Self>, first_render: bool) {
+        if first_render {
+            if let Some(input) = self.debug_log_input.cast::<HtmlInputElement>() {
+                let _ = input.focus();
+            }
+        }
+    }
+
     fn update(&mut self, ctx: &yew::prelude::Context<Self>, msg: Self::Message) -> bool {
         match self.update_inner(ctx, msg) {
             Ok(should_render) => should_render,
