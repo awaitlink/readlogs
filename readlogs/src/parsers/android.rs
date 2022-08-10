@@ -1,3 +1,4 @@
+use chrono::Duration;
 use nom::{
     branch::alt,
     bytes::complete::{is_a, is_not, tag, take_till, take_until, take_while},
@@ -357,6 +358,7 @@ fn logcat_section<'a>(year: i32) -> impl FnMut(Span) -> IResult<Span, Section<Lo
     )(input)
 }
 
+#[derive(Debug, PartialEq)]
 enum LoggerTimezone<'a> {
     Parsed(FixedOffset),
     Unparsed(&'a str),
@@ -367,13 +369,21 @@ fn logger_timezone(input: Span) -> IResult<Span, LoggerTimezone> {
     alt((
         map(
             tuple((
-                tag("GMT"),
+                opt(tag("GMT")),
                 alt((value(1, tag("+")), value(-1, tag("-")))),
-                complete::i32,
+                complete::i64,
                 tag(":"),
-                complete::i32,
+                complete::i64,
             )),
-            |(_, pm, h, _, m)| LoggerTimezone::Parsed(FixedOffset::east((h * 60 + m) * 60 * pm)),
+            |(_, sign, h, _, m)| {
+                let offset = (Duration::hours(h) + Duration::minutes(m)).num_seconds() * sign;
+
+                LoggerTimezone::Parsed(FixedOffset::east(
+                    offset
+                        .try_into()
+                        .expect("offset should be convertible to i32"),
+                ))
+            },
         ),
         map(take_until(" "), |span: Span| {
             LoggerTimezone::Unparsed(span.fragment())
@@ -959,6 +969,12 @@ mod tests {
         test_parsing(logcat_section(1234), input, "", output);
     }
 
+    #[test_case("GMT+01:00", LoggerTimezone::Parsed(FixedOffset::east(3600)); "basic")]
+    #[test_case("+01:00", LoggerTimezone::Parsed(FixedOffset::east(3600)); "no GMT in timezone")]
+    fn logger_timezone_ok(input: &str, output: LoggerTimezone) {
+        test_parsing(logger_timezone, input, "", output);
+    }
+
     #[test_case("[1.23.4] [5678 ] 1234-01-23 12:34:56.789 GMT+01:00 I abc: Log message", LogEntry {
         timestamp: FixedOffset::east(3600).ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789).to_string(),
         level: Some(LogLevel::Info),
@@ -982,7 +998,7 @@ mod tests {
         level: Some(LogLevel::Info),
         meta: PlatformMetadata::AndroidLogger { version: "1.23.4".to_owned(), thread_id: "5678".to_owned(), tag: "abc".to_owned() },
         message: "Log message".to_owned(),
-    }; "timestamp not in GMT+hh:mm format")]
+    }; "custom timezone")]
     fn logger_entry_ok(input: &str, output: LogEntry) {
         test_parsing(logger_entry, input, "", output);
     }
