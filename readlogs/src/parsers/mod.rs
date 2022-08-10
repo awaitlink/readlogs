@@ -284,8 +284,10 @@ impl Section<LogEntry> {
         let entries_to_display = self
             .content
             .iter()
-            .filter(|entry| entry.level.unwrap_or_default() >= query.min_log_level)
-            .filter(|entry| {
+            .enumerate()
+            .map(|(index, entry)| (index + 1, entry))
+            .filter(|(_, entry)| entry.level.unwrap_or_default() >= query.min_log_level)
+            .filter(|(_, entry)| {
                 entry.timestamp.to_lowercase().contains(s)
                     || entry.message.to_lowercase().contains(s)
                     || entry.meta.contains(s)
@@ -299,6 +301,7 @@ impl Section<LogEntry> {
                 <Table>
                     <thead>
                         <TableRow classes={classes!("text-left")}>
+                            <TableItem tag="th"><Icon fixed_width_height=false icon={classes!("fas", "fa-hashtag")}/></TableItem>
                             <TableItem tag="th" classes={classes!("min-w-[250px]")}>{ "Timestamp" }</TableItem>
 
                             {
@@ -332,7 +335,7 @@ impl Section<LogEntry> {
                         </TableRow>
                     </thead>
                     <tbody class="font-mono">
-                        { for entries_to_display.map(|entry| entry.view()) }
+                        { for entries_to_display.map(|(number, entry)| entry.view(number)) }
                     </tbody>
                 </Table>
             }
@@ -358,9 +361,10 @@ impl Section<LogEntry> {
 }
 
 impl LogEntry {
-    pub fn view(&self) -> Html {
+    pub fn view(&self, number: usize) -> Html {
         html! {
             <TableRow classes={self.level.unwrap_or_default().color()}>
+                <TableItem>{ number }</TableItem>
                 <TableItem>{ self.timestamp.to_string() }</TableItem>
                 { self.meta.clone().view() }
                 <TableItem><pre>{ self.message.to_owned() }</pre></TableItem>
