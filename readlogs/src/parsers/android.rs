@@ -250,11 +250,13 @@ fn info_section<'a>(depth: SectionLevel) -> impl FnMut(Span) -> IResult<Span, Se
                 many1(common::multispaced0(map(
                     preceded(
                         peek(not(alt((
-                            section_with_indented_subsections(LocalMetrics),
-                            section_with_indented_subsections(NotificationProfiles),
-                            // section_with_indented_subsections(OwnershipInfo), // TODO: Investigate, it causes parsers::android::tests::info_section_ok::blocked_threads failure
+                            value((), common::section_header),
+                            value((), subsection_header),
+                            value((), section_with_indented_subsections(LocalMetrics)),
+                            value((), section_with_indented_subsections(NotificationProfiles)),
+                            // value((), section_with_indented_subsections(OwnershipInfo)), // TODO: Investigate, it causes parsers::android::tests::info_section_ok::blocked_threads failure
                         )))),
-                        is_not("\n-="),
+                        is_not("\n"),
                     ),
                     |s: Span| InfoEntry::Generic(s.fragment().to_string()),
                 ))),
@@ -826,6 +828,45 @@ mod tests {
             ],
             subsections: vec![],
         }; "threads"
+    )]
+    #[test_case(
+        "======= LAST THREAD DUMP ========\nTime: 2009-02-13 11:31:30.123 GMT (1234567890123)\n\n-- [9876] AbcDefGhi (BLOCKED)\nghi.jkl.ABCdef.abcDefGhi(Native Method)\nabc.def.Abc$Cba.run(DEF.java:456)\nabc.def.Def.run(ABC.java:123)",
+        Section {
+            name: "LAST THREAD DUMP".to_owned(),
+            content: vec![
+                InfoEntry::KeyValue("Time".to_owned(), Value::Generic("2009-02-13 11:31:30.123 GMT (1234567890123)".to_owned())),
+            ],
+            subsections: vec![
+                Section {
+                    name: "[9876] AbcDefGhi (BLOCKED)".to_owned(),
+                    content: vec![
+                        InfoEntry::Generic("ghi.jkl.ABCdef.abcDefGhi(Native Method)".to_owned()),
+                        InfoEntry::Generic("abc.def.Abc$Cba.run(DEF.java:456)".to_owned()),
+                        InfoEntry::Generic("abc.def.Def.run(ABC.java:123)".to_owned()),
+                    ],
+                    subsections: vec![],
+                }
+            ],
+        }; "last thread dump"
+    )]
+    #[test_case(
+        "======= LAST THREAD DUMP ========\nTime: 2009-02-13 11:31:30.123 GMT (1234567890123)\n\n-- [9876] AbcDefGhi (BLOCKED)\norg.thoughtcrime.securesms.util.concurrent.SerialMonoLifoExecutor.$r8$lambda$zGI5_MD8odfHaH2-Q_X27ikdsnk(Unknown Source:0)\norg.thoughtcrime.securesms.util.concurrent.SerialMonoLifoExecutor.$r8$lambda$zGI5_MD8odfHaH2-Q_X27ikdsnk(Unknown Source:0)",
+        Section {
+            name: "LAST THREAD DUMP".to_owned(),
+            content: vec![
+                InfoEntry::KeyValue("Time".to_owned(), Value::Generic("2009-02-13 11:31:30.123 GMT (1234567890123)".to_owned())),
+            ],
+            subsections: vec![
+                Section {
+                    name: "[9876] AbcDefGhi (BLOCKED)".to_owned(),
+                    content: vec![
+                        InfoEntry::Generic("org.thoughtcrime.securesms.util.concurrent.SerialMonoLifoExecutor.$r8$lambda$zGI5_MD8odfHaH2-Q_X27ikdsnk(Unknown Source:0)".to_owned()),
+                        InfoEntry::Generic("org.thoughtcrime.securesms.util.concurrent.SerialMonoLifoExecutor.$r8$lambda$zGI5_MD8odfHaH2-Q_X27ikdsnk(Unknown Source:0)".to_owned()),
+                    ],
+                    subsections: vec![],
+                }
+            ],
+        }; "last thread dump with dash"
     )]
     #[test_case(
         "===== BLOCKED THREADS =====\n-- [9876] AbcDefGhi (BLOCKED)\nghi.jkl.ABCdef.abcDefGhi(Native Method)\nabc.def.Abc$Cba.run(DEF.java:456)\nabc.def.Def.run(ABC.java:123)",
