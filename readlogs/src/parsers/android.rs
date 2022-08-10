@@ -357,14 +357,14 @@ fn logcat_section<'a>(year: i32) -> impl FnMut(Span) -> IResult<Span, Section<Lo
     )(input)
 }
 
-#[traceable_parser]
-fn logger_metadata(input: Span) -> IResult<Span, (PlatformMetadata, String, LogLevel)> {
-    enum LoggerTimezone<'a> {
-        Parsed(FixedOffset),
-        Unparsed(&'a str),
-    }
+enum LoggerTimezone<'a> {
+    Parsed(FixedOffset),
+    Unparsed(&'a str),
+}
 
-    let logger_timezone = alt((
+#[traceable_parser]
+fn logger_timezone(input: Span) -> IResult<Span, LoggerTimezone> {
+    alt((
         map(
             tuple((
                 tag("GMT"),
@@ -378,8 +378,11 @@ fn logger_metadata(input: Span) -> IResult<Span, (PlatformMetadata, String, LogL
         map(take_until(" "), |span: Span| {
             LoggerTimezone::Unparsed(span.fragment())
         }),
-    ));
+    ))(input)
+}
 
+#[traceable_parser]
+fn logger_metadata(input: Span) -> IResult<Span, (PlatformMetadata, String, LogLevel)> {
     map(
         tuple((
             delimited(tag("["), is_not("]"), tag("]")),
