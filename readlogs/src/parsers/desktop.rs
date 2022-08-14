@@ -22,7 +22,7 @@ fn info_section(input: Span) -> IResult<Span, Section<InfoEntry>> {
 
     let (remainder, entries) = many0(delimited(
         multispace0,
-        common::key_maybe_enabled_value,
+        common::key_maybe_enabled_value(false),
         multispace0,
     ))(remainder)?;
 

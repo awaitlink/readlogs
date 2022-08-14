@@ -41,15 +41,16 @@ fn thread(input: Span) -> IResult<Span, InfoEntry> {
     )(input)
 }
 
+// `pub` because it's used in `common::key_maybe_enabled_value`
 #[traceable_parser]
-fn jobs_inline_section(input: Span) -> IResult<Span, Section<InfoEntry>> {
+pub fn jobs_inline_section(input: Span) -> IResult<Span, Section<InfoEntry>> {
     map(
         separated_pair(
             preceded(alt((tag("id: "), tag("jobSpecId: "))), is_not(" ")),
             common::ws(tag("|")),
             separated_list1(
                 common::ws(tag("|")),
-                common::ws(common::key_maybe_enabled_value),
+                common::ws(common::key_maybe_enabled_value(true)),
             ),
         ),
         |(name, pairs)| Section {
@@ -127,12 +128,13 @@ fn indented_subsection(
         tuple((
             is_not("\n"),
             count(
-                common::multispaced0(verify(common::key_maybe_enabled_value, move |entry| {
-                    match entry {
+                common::multispaced0(verify(
+                    common::key_maybe_enabled_value(false),
+                    move |entry| match entry {
                         InfoEntry::KeyValue(k, _) => ty.supports_key_in_subsection(k.as_str()),
                         _ => false,
-                    }
-                })),
+                    },
+                )),
                 ty.subsection_keyvalues_count(),
             ),
         )),
@@ -180,12 +182,13 @@ fn section_with_indented_subsections(
         tuple((
             is_not("\n"),
             count(
-                common::multispaced0(verify(common::key_maybe_enabled_value, move |entry| {
-                    match entry {
+                common::multispaced0(verify(
+                    common::key_maybe_enabled_value(false),
+                    move |entry| match entry {
                         InfoEntry::KeyValue(k, _) => ty.supports_key_in_section(k.as_str()),
                         _ => false,
-                    }
-                })),
+                    },
+                )),
                 ty.section_keyvalues_count(),
             ),
             many0(common::multispaced0(indented_subsection(ty))),
@@ -243,7 +246,7 @@ fn info_section<'a>(depth: SectionLevel) -> impl FnMut(Span) -> IResult<Span, Se
             peek(not(jobs_inline_section)),
             common::multispaced0(alt((
                 map(generic_table, |table| vec![InfoEntry::GenericTable(table)]),
-                many1(common::multispaced0(common::key_maybe_enabled_value)),
+                many1(common::multispaced0(common::key_maybe_enabled_value(false))),
                 many1(common::multispaced0(thread)),
                 map(remote_object, |ro| vec![InfoEntry::RemoteObject(ro)]),
                 value(vec![InfoEntry::ExplicitNone], tag("None")),
@@ -520,7 +523,24 @@ mod tests {
                 InfoEntry::KeyValue("self.isRegistered()".to_owned(), Value::Generic("true".to_owned())),
             ],
             subsections: vec![],
-        }; "sysinfo, constraints, key preferences, permissions"
+        }; "sysinfo, constraints, key preferences, sms, badges, permissions"
+    )]
+    #[test_case(
+        "============ STORIES ============\n--- My Story\nDatabase ID    : DistributionListId::1\nDistribution ID: ********-****-****-****-**********00 (Matches expected value? true)\nRecipient ID   : 1\ntoString() Test: ********-****-****-****-**********00 | ********-****-****-****-**********00",
+        Section {
+            name: "STORIES".to_owned(),
+            content: vec![],
+            subsections: vec![Section {
+                name: "My Story".to_owned(),
+                content: vec![
+                    InfoEntry::KeyValue("Database ID".to_owned(), Value::Generic("DistributionListId::1".to_owned())),
+                    InfoEntry::KeyValue("Distribution ID".to_owned(), Value::Generic("********-****-****-****-**********00 (Matches expected value? true)".to_owned())),
+                    InfoEntry::KeyValue("Recipient ID".to_owned(), Value::Generic("1".to_owned())),
+                    InfoEntry::KeyValue("toString() Test".to_owned(), Value::Generic("********-****-****-****-**********00 | ********-****-****-****-**********00".to_owned())),
+                ],
+                subsections: vec![],
+            }],
+        }; "stories"
     )]
     #[test_case(
         "========== JOBS ===========\n-- Jobs\nid: JOB::abcd1234-efgh-5678-ijkl-9012mnop1234 | a: TestJob | b: _test_value_ | number: 123 | negative: -1\n\n-- Constraints\njobSpecId: JOB::abcd1234-efgh-5678-ijkl-9012mnop1234 | a: TestConstraint | anotherValue: false\n\n-- Dependencies\nNone",

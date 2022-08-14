@@ -57,8 +57,10 @@ pub fn bucketed_flag(input: Span) -> IResult<Span, Vec<Bucket>> {
     )(input)
 }
 
-#[traceable_parser]
-pub fn key_maybe_enabled_value(input: Span) -> IResult<Span, InfoEntry> {
+#[traceable_configurable_parser]
+pub fn key_maybe_enabled_value<'a>(
+    inside_inline_section: bool,
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, InfoEntry> {
     let parse_key = terminated(
         verify(take_until(": "), |key: &Span| !key.contains('\n')),
         tag(": "),
@@ -68,12 +70,18 @@ pub fn key_maybe_enabled_value(input: Span) -> IResult<Span, InfoEntry> {
 
     let parse_value = alt((
         map(bucketed_flag, Value::BucketedFlag),
-        map(is_not("\n|"), |s: Span| Value::Generic(s.trim().to_owned())),
+        map(
+            is_not(if inside_inline_section { "\n|" } else { "\n" }),
+            |s: Span| Value::Generic(s.trim().to_owned()),
+        ),
     ));
 
     map(
         tuple((
-            peek(not(tag("--"))),
+            peek(not(alt((
+                value((), tag("--")),
+                value((), android::jobs_inline_section),
+            )))),
             parse_key,
             opt(parse_enabled),
             delimited(
@@ -283,12 +291,12 @@ mod tests {
         "followed by log section"
     )]
     fn key_maybe_enabled_value_ok(input: &str, remainder: &str, output: InfoEntry) {
-        test_parsing(key_maybe_enabled_value, input, remainder, output);
+        test_parsing(key_maybe_enabled_value(false), input, remainder, output);
     }
 
     #[test]
     fn key_maybe_enabled_value_err() {
-        test_parsing_err_or_remainder(key_maybe_enabled_value, "-- test : 123");
+        test_parsing_err_or_remainder(key_maybe_enabled_value(false), "-- test : 123");
     }
 
     #[test_case("1234/01/23 12:34:56:789", NaiveDate::from_ymd(1234, 1, 23).and_hms_milli(12, 34, 56, 789); "basic")]
