@@ -58,9 +58,27 @@ Note that debug logs uploaded by the Signal apps already have sensitive informat
 
 It could be possible to infer that someone has recently viewed a given debug log using this project because of different response times due to potential additional cache (compared to just downloading from `debuglogs.org`) being hit or missed, etc.
 
-This is counteracted by *not* caching the worker's response in Cloudflare's CDN. So, each request to the worker, if deeemed valid in the first place, will always request the debug log directly from `debuglogs.org`.
+There are multiple caching layers present:
 
-The response is, however, cached locally in the browser (currently, for 7 days) to avoid repeated requests in case the user is viewing the same debug log multiple times.
+1. **`debuglogs.org`'s own cache:**
+
+    The behavior of this cache can't be changed by this project. This is also the cache that has an impact in any case, even if you download debug logs from `debuglogs.org` directly. Though depending on its setup, this cache may be more likely to trigger if the request comes from a certain edge data center of Cloudflare's network (which is the case with this project) because the same data center may be used for multiple users.
+
+2. **Cloudflare's caching of the `fetch` call in the worker (that requests the debug log from `debuglogs.org`):**
+
+    This cache appears to be enabled, based on the `cf-cache-status`, `age`, and `last-modified` headers that were returned with the worker's response (they are now being removed: https://github.com/u32i64/readlogs/commit/7d0a1e830a65f92a3a4218af6cc84a6d97c65a5f).
+
+    However, the `cacheTtl` for the `fetch` call is now set to `0` (https://github.com/u32i64/readlogs/commit/066dee8148ebd20713dce6756b967f180bd379ff), so this cache immediately expires (see [Cloudflare cache responses](https://developers.cloudflare.com/cache/about/default-cache-behavior/#cloudflare-cache-responses); if the headers mentioned above aren't removed, the `cf-cache-status` given to the browser is `EXPIRED`), meaning the debug log should always be requested from the layer above.
+
+3. **Cloudflare's caching of the worker's response:**
+
+    It's likely that this cache is not enabled.
+
+    In any case, the worker sets the `Cloudflare-CDN-Cache-Control` header to `no-store` as an attempt to disable this cache, but because this header is not removed by Cloudflare, it seems that it is not used by Cloudflare (see [`CDN-Cache-Control`](https://developers.cloudflare.com/cache/about/cdn-cache-control/)).
+
+4. **Caching in the user's browser:**
+
+    The response *is* explicitly cached here (currently, for 7 days) to avoid repeated requests in case the user is viewing the same debug log multiple times.
 
 ## Building the app
 1. Install [Yarn](https://yarnpkg.com).
