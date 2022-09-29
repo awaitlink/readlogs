@@ -36,13 +36,11 @@ https://debuglogs.org/{platform}/{version}/{key}{ext?}
 ### 2. Fetching
 In general, the file is fetched using the worker: it's not possible to fetch directly from `debuglogs.org` due to its [Cross-Origin Resource Sharing](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) policy.
 
-There are some differences in the fetching process between Signal Android/Desktop and Signal iOS:
+There are some differences in the fetching process between Signal Android/Desktop and Signal iOS due to the underlying format that debug logs are uploaded in by the Signal apps:
 
 - **Signal Android/Desktop**
 
-    The file is `gzip`-ped plain text. The worker alters the response to indicate this; presumably, Cloudflare then picks the best compression to deliver the response to your browser (e.g. `brotli`). The browser uncompresses the response and provides it to the app in plain text.
-
-    So all compression work is done by Cloudflare and the browser; neither the worker itself nor the app.
+    The file is `gzip`-ped plain text. The worker alters the response received from `debuglogs.org` to indicate this. The web app itself doesn't handle the decompression of the response from the worker (presumably, the browser performs it), the web app receives the debug log in plain text.
 
 - **Signal iOS**
 
