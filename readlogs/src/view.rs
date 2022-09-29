@@ -253,7 +253,14 @@ impl super::Model {
                         <Link href="https://github.com/u32i64/readlogs" text="Readlogs" no_referrer={false} no_follow={false}/>
                         { " is an unofficial project. It is not affiliated with the Signal Technology Foundation or Signal Messenger, LLC." }
                     </p>
-                    <p><code>{ env!("VERGEN_GIT_SHA_SHORT") }</code></p>
+                    <p>
+                    <Link href="https://github.com/u32i64/readlogs#privacy-considerations" text="privacy considerations" no_referrer={false} no_follow={false}/>
+                    {" • version "}
+                    <code>{ env!("VERGEN_GIT_SHA_SHORT") }</code>
+                    { " (" }
+                    { env!("VERGEN_BUILD_DATE") }
+                    { ")" }
+                    </p>
                 </article>
             </footer>
         }
