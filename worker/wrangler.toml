@@ -1,7 +1,5 @@
 name = "getlogs"
-type = "javascript"
-route = ''
-zone_id = ''
-usage_model = ''
+compatibility_date = "2022-09-29"
 compatibility_flags = []
 workers_dev = true
+main = "worker.js"
