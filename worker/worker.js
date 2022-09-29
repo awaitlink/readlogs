@@ -62,6 +62,10 @@ async function respond(origin, pathname, version, platform, extension, isAGzip) 
 
     const newResponse = new Response(response.body, options);
 
+    newResponse.headers.delete("cf-cache-status");
+    newResponse.headers.delete("age");
+    newResponse.headers.delete("last-modified");
+
     newResponse.headers.delete("x-cache");
     newResponse.headers.delete("via");
     newResponse.headers.delete("date");
