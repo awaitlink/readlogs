@@ -45,7 +45,7 @@ async function respond(origin, pathname, version, platform, extension, isAGzip) 
         url = "https://debuglogs.org/" + platform + "/" + version + "/" + key + extension;
     }
 
-    const response = await fetch(url);
+    const response = await fetch(url, { cf: { cacheTtl: 0 } });
 
     if (!response.ok || response.headers.get("content-length") === "243") { // Hacky, but this is the length that errors have.
         return notFound(origin);
