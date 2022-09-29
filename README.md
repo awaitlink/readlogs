@@ -40,7 +40,7 @@ There are some differences in the fetching process between Signal Android/Deskto
 
 - **Signal Android/Desktop**
 
-    The file is `gzip`-ped plain text. The worker alters the response received from `debuglogs.org` to indicate this. The web app itself doesn't handle the decompression of the response from the worker (presumably, the browser performs it), the web app receives the debug log in plain text.
+    The file is `gzip`-ped plain text. The worker alters the response received from `debuglogs.org` to indicate this. The web app itself doesn't handle the decompression of the response from the worker (presumably, the browser or its [`fetch` API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) performs it); the web app receives the debug log in plain text.
 
 - **Signal iOS**
 
