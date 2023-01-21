@@ -19,5 +19,5 @@ pub use rendered_log_section::RenderedLogSection;
 pub use utils::*;
 
 fn main() {
-    yew::start_app::<Model>();
+    yew::Renderer::<Model>::new().render();
 }

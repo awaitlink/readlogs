@@ -66,7 +66,7 @@ impl super::Model {
         html! {
             <div class="flex mb-8">
                 <Input
-                    ref={self.debug_log_input.clone()}
+                    r#ref={self.debug_log_input.clone()}
                     classes={classes!("rounded-l-2xl")}
                     value={self.debug_log_url.clone()}
                     on_change={ctx.link().callback(Msg::UpdateUrl)}

@@ -12,7 +12,7 @@ default = []
 trace = ["nom-tracable/trace"]
 
 [dependencies]
-yew = "0.19"
+yew = { version = "0.20", features = ["csr"] }
 yewtil = "0.4"
 anyhow = "1.0"
 nom = "7.1"

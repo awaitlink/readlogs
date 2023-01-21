@@ -125,25 +125,28 @@ pub fn naive_date_time<'a>(
         digit1,
     ))(remainder)?;
 
-    let date = NaiveDate::from_ymd(year, month.parse().unwrap(), day.parse().unwrap());
+    let date = NaiveDate::from_ymd_opt(year, month.parse().unwrap(), day.parse().unwrap())
+        .unwrap_or(NaiveDate::MIN);
 
     let datetime = if let Some(millisecond_separator) = millisecond_separator {
         let (new_remainder, millisecond) = preceded(tag(millisecond_separator), digit1)(remainder)?;
 
         remainder = new_remainder;
 
-        date.and_hms_milli(
+        date.and_hms_milli_opt(
             hour.parse().unwrap(),
             minute.parse().unwrap(),
             second.parse().unwrap(),
             millisecond.parse().unwrap(),
         )
+        .unwrap_or_else(|| date.and_hms_milli_opt(0, 0, 0, 0).unwrap())
     } else {
-        date.and_hms(
+        date.and_hms_opt(
             hour.parse().unwrap(),
             minute.parse().unwrap(),
             second.parse().unwrap(),
         )
+        .unwrap_or_else(|| date.and_hms_opt(0, 0, 0).unwrap())
     };
 
     if let Some(ending) = ending {

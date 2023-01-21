@@ -3,7 +3,7 @@ use nom::{
     branch::alt,
     bytes::complete::{is_a, is_not, tag, take_till, take_until, take_while},
     character::complete::{self, digit1, multispace0, newline, space0, space1},
-    combinator::{map, not, opt, peek, success, value, verify},
+    combinator::{map, map_opt, not, opt, peek, success, value, verify},
     multi::{count, many0, many1, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, tuple},
     IResult,
@@ -372,7 +372,7 @@ enum LoggerTimezone<'a> {
 #[traceable_parser]
 fn logger_timezone(input: Span) -> IResult<Span, LoggerTimezone> {
     alt((
-        map(
+        map_opt(
             tuple((
                 opt(tag("GMT")),
                 alt((value(1, tag("+")), value(-1, tag("-")))),
@@ -383,11 +383,12 @@ fn logger_timezone(input: Span) -> IResult<Span, LoggerTimezone> {
             |(_, sign, h, _, m)| {
                 let offset = (Duration::hours(h) + Duration::minutes(m)).num_seconds() * sign;
 
-                LoggerTimezone::Parsed(FixedOffset::east(
+                FixedOffset::east_opt(
                     offset
                         .try_into()
                         .expect("offset should be convertible to i32"),
-                ))
+                )
+                .map(|offset| LoggerTimezone::Parsed(offset))
             },
         ),
         map(take_until(" "), |span: Span| {
@@ -447,7 +448,7 @@ fn logger_entry(input: Span) -> IResult<Span, LogEntry> {
 pub fn content(input: Span) -> IResult<Span, Content> {
     let (remainder, (information, logcat_section, _, mut logger_entries)) = tuple((
         preceded(multispace0, many0(info_section(SectionLevel::Base))),
-        preceded(multispace0, logcat_section(Utc::today().year())), // TODO: year...
+        preceded(multispace0, logcat_section(Utc::now().year())), // TODO: year...
         verify(common::section_header, |name: &str| {
             name == LOGGER_SECTION_NAME
         }),

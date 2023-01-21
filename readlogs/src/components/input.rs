@@ -21,6 +21,9 @@ pub struct InputProps {
     pub disabled: bool,
     #[prop_or(false)]
     pub autofocus: bool,
+
+    #[prop_or_default]
+    pub r#ref: Option<NodeRef>,
 }
 
 #[function_component(Input)]
@@ -47,16 +50,35 @@ pub fn input(props: &InputProps) -> Html {
         "dark:border-brand-dark-border",
     );
 
-    html! {
-        <input
-            type="text"
-            value={props.value.clone()}
-            oninput={props.on_change.clone().reform(|event: InputEvent| event.target().unwrap().dyn_into::<HtmlInputElement>().unwrap().value())}
-            class={classes}
-            placeholder={props.placeholder.clone()}
-            onkeypress={props.on_submit_maybe.clone().reform(|e: KeyboardEvent| e.key() == "Enter")}
-            disabled={props.disabled}
-            autofocus={props.autofocus}
-        />
+    match &props.r#ref {
+        Some(r#ref) => {
+            html! {
+                <input
+                    type="text"
+                    ref={r#ref}
+                    value={props.value.clone()}
+                    oninput={props.on_change.clone().reform(|event: InputEvent| event.target().unwrap().dyn_into::<HtmlInputElement>().unwrap().value())}
+                    class={classes}
+                    placeholder={props.placeholder.clone()}
+                    onkeypress={props.on_submit_maybe.clone().reform(|e: KeyboardEvent| e.key() == "Enter")}
+                    disabled={props.disabled}
+                    autofocus={props.autofocus}
+                />
+            }
+        }
+        None => {
+            html! {
+                <input
+                    type="text"
+                    value={props.value.clone()}
+                    oninput={props.on_change.clone().reform(|event: InputEvent| event.target().unwrap().dyn_into::<HtmlInputElement>().unwrap().value())}
+                    class={classes}
+                    placeholder={props.placeholder.clone()}
+                    onkeypress={props.on_submit_maybe.clone().reform(|e: KeyboardEvent| e.key() == "Enter")}
+                    disabled={props.disabled}
+                    autofocus={props.autofocus}
+                />
+            }
+        }
     }
 }
