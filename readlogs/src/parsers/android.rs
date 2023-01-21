@@ -388,7 +388,7 @@ fn logger_timezone(input: Span) -> IResult<Span, LoggerTimezone> {
                         .try_into()
                         .expect("offset should be convertible to i32"),
                 )
-                .map(|offset| LoggerTimezone::Parsed(offset))
+                .map(LoggerTimezone::Parsed)
             },
         ),
         map(take_until(" "), |span: Span| {

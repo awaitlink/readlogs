@@ -103,7 +103,7 @@ impl super::Model {
             },
             State::Error(e) => html! {
                 <Message error={true} heading="Error">
-                    <CodeBlock text={Rc::new(format!("Error: {:?}", e))}/>
+                    <CodeBlock text={Rc::new(format!("Error: {e:?}"))}/>
                 </Message>
             },
             _ => html! {},

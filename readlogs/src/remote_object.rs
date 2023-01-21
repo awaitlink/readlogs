@@ -70,7 +70,7 @@ impl RemoteObject {
             self.platform.to_string().to_lowercase(),
             self.key,
             match &self.version {
-                Some(version) => format!("?v={}", version),
+                Some(version) => format!("?v={version}"),
                 None => "".to_string(),
             },
         )

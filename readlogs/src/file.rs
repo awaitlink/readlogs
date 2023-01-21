@@ -112,7 +112,7 @@ impl File {
 
         html! {
             <Message error={true} heading="Error parsing file">
-                <CodeBlock text={Rc::new(format!("Error: {:?}", error))}/>
+                <CodeBlock text={Rc::new(format!("Error: {error:?}"))}/>
                 <span class="text-brand-text">{notice}</span>
             </Message>
         }

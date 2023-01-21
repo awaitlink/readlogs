@@ -46,9 +46,8 @@ mod tests {
     #[test]
     fn collapse_log_entries_ok_android_logcat() {
         let entry1 = LogEntry {
-            timestamp: Utc
-                .ymd(1234, 1, 22)
-                .and_hms_milli(12, 34, 56, 789)
+            timestamp: NaiveDate::from_ymd_opt(1234, 1, 22).unwrap()
+                .and_hms_milli_opt(12, 34, 56, 789).unwrap()
                 .to_string(),
             level: Some(LogLevel::Info),
             meta: PlatformMetadata::AndroidLogcat {

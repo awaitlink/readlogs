@@ -24,7 +24,7 @@ pub fn file_picker(props: &FilePickerProps) -> Html {
     html! {
         <Message
             classes={props.classes.clone()}
-            heading={format!("{} AM/PM", submission_time)}
+            heading={format!("{submission_time} AM/PM")}
         >
             <Table classes={classes!("font-mono")}>
                 <tbody>

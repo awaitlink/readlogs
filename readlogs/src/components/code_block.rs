@@ -59,7 +59,7 @@ pub fn code_block(props: &CodeBlockProps) -> Html {
                     "mx-auto",
                     "p-4",
                 )}>
-                    { format!("Only the first {} lines are currently shown above. ", LINE_LIMIT_COLLAPSED) }
+                    { format!("Only the first {LINE_LIMIT_COLLAPSED} lines are currently shown above. ") }
 
                     <Button
                         classes={classes!("rounded-2xl")}
